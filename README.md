@@ -1,16 +1,17 @@
 # SolarWake — live demo site
 
-**AI revenue recovery for solar installers: quotes that went quiet, and invoices that haven't been paid.**
+**Revenue recovery for solar installers: quotes that went quiet, and invoices that haven't been paid.**
 SolarWake follows up over email or WhatsApp, books advisor calls, chases payments politely, and keeps a
-ledger your accountant can filter by any period. Messages are generated **live by Anthropic's Claude API**.
+ledger your accountant can filter by any period. Messages come from **built-in templates**, and replies are
+understood with **keyword rules**, so the demo runs for free with no paid AI (see *Optional: Claude* below).
 
 The site opens on a public **landing page** (light theme, EN/DE, accessible: skip link, focus outlines,
 WCAG-contrast buttons, reduced-motion support). **Try the live demo** / **Sign in** opens the app (`/#app`):
 
 | Tab | Who it's for | What it shows |
 |---|---|---|
-| **Leads** (B2B) | The solar company (SolarWake's paying customer) | Pipeline KPIs, funnel, one-click campaign across cold leads, email/WhatsApp agent, AI advisor handoff brief, live activity feed, ROI calculator |
-| **Invoices** (B2B) | The installer's back office | Outstanding / overdue / days-to-pay KPIs, unpaid-by-age chart, a reminder schedule that gets firmer (heads-up → due today → polite → firm → final notice, each step can be switched off), AI-written reminders sent as real emails, AI handling of replies ("already paid", instalments, problem with the installation, promised date) which pauses reminders |
+| **Leads** (B2B) | The solar company (SolarWake's paying customer) | Pipeline KPIs, funnel, one-click campaign across cold leads, email/WhatsApp agent that answers objections (price, competitor, savings/ROI, CFO sign-off, cash flow, timing), advisor handoff brief, live activity feed, ROI calculator |
+| **Invoices** (B2B) | The installer's back office | Outstanding / overdue / days-to-pay KPIs, unpaid-by-age chart, a reminder schedule that gets firmer (heads-up → due today → polite → firm → final notice, each step can be switched off), reminders sent as real emails, automatic handling of replies ("already paid", instalments, problem with the installation, promised date) which pauses reminders |
 | **Transactions** | The installer's accountant | Every payment in and out (customer payments, invoices, supplier bills, refunds) with a calendar range picker, quick periods, **calendar settings** (financial-year start, week start, date format), filters (installer, direction, type, search), a **missing documents** filter with "request" button, and CSV export |
 | **Customer Page** (B2C) | The installer's lead | Personal savings & payback, battery option, financing, price-lock deadline, self-serve booking |
 | **Pay Page** (B2C) | The installer's customer | Invoice details, pay by card / bank transfer / 3 instalments (homeowners), report a problem. Test payments only; no money moves |
@@ -61,45 +62,41 @@ package.json     lets Vercel recognise the project
 
 ---
 
-## Test locally with the live AI (before deploying)
+## Test locally (before deploying)
 
-1. Create a file named `.env.local` in this folder (it is git-ignored). The email lines are optional:
+1. Optional, for real emails: create a file named `.env.local` in this folder (it is git-ignored):
    ```
-   ANTHROPIC_API_KEY=sk-ant-...
    RESEND_API_KEY=re_...
    EMAIL_TEST_INBOX=you@gmail.com
    ```
 2. Run `npm run local` (Node 22.9+; no `npm install` needed).
-3. Open http://localhost:3000 and leave the toggle on **Live AI**.
+3. Open http://localhost:3000 and leave the toggle on **Live mode**.
 
-`dev-server.mjs` serves the page and runs `api/chat.js` exactly as Vercel will.
+`dev-server.mjs` serves the page and runs `api/*.js` exactly as Vercel will.
 
 ---
 
 ## Deploy to a live URL (Vercel, ~5 min, no git needed)
 
-1. Get an API key at https://console.anthropic.com  ->  API Keys  ->  Create Key (starts with `sk-ant-`).
-2. Install the CLI and log in:
+1. Install the CLI and log in:
    ```
    npm i -g vercel
    vercel login
    ```
-3. From inside this folder, deploy:
+2. From inside this folder, deploy:
    ```
    vercel
    ```
    Accept the defaults. You'll get a preview URL.
-4. Add your key as an environment variable, then ship production:
+3. Ship production (add the Resend variables from *Live email* first if you want real emails):
    ```
-   vercel env add ANTHROPIC_API_KEY
-   # paste your sk-ant-... key, choose "Production" (and Preview if asked)
    vercel --prod
    ```
-5. Open the `https://<your-project>.vercel.app` URL it prints. **That's your live demo link.**
+4. Open the `https://<your-project>.vercel.app` URL it prints. **That's your live demo link.**
 
 ### Alternative: Vercel via GitHub
-Push this folder to a GitHub repo -> import it at https://vercel.com/new -> add the
-`ANTHROPIC_API_KEY` environment variable in Project Settings -> Deploy.
+Push this folder to a GitHub repo -> import it at https://vercel.com/new -> Deploy. Every push to `main`
+redeploys automatically.
 
 ### Custom domain (optional)
 In the Vercel project -> Settings -> Domains -> add a domain you own. The free
@@ -110,9 +107,8 @@ In the Vercel project -> Settings -> Domains -> add a domain you own. The free
 ## Presenting live — read this
 
 - **Test on the venue wifi before you go on.** The app loads React from a CDN, so it needs internet.
-- **Demo Mode toggle (top-right):** switch to *Demo Mode (scripted)* for a rehearsed, no-network run
-  that always books. Use *Live AI* to show the real Claude API. If a live call ever fails mid-demo,
-  the app auto-falls back to the script so it never freezes.
+- **Mode toggle (top-right):** *Live mode* really sends the agent's emails to your test inbox.
+  *Rehearsal: nothing sent* behaves the same but sends no emails, for practising.
 - Suggested 3-minute flow:
   1. **Console:** point at the KPI row. "€X of pipeline the installer already paid for."
   2. Click **Reactivate all cold leads**. Openers go out and replies come in on the activity feed (replies are simulated).
@@ -124,14 +120,12 @@ In the Vercel project -> Settings -> Domains -> add a domain you own. The free
      company from the inbox to show the CFO playbook over email.
   7. Finish on the **ROI calculator** with the installer's own numbers.
 
-## Change the model
-In `index.html`, edit one line:
-```js
-const MODEL = "claude-sonnet-5";   // best conversation
-// or "claude-haiku-5-5"           // cheaper & faster
-```
-Also add the new name to `ALLOWED_MODELS` in `api/chat.js` (the proxy only forwards allow-listed models).
-
 ## Cost
-Each reply is a short Claude call (a few cents at most on Sonnet, less on Haiku). A whole demo
-run is well under a euro. Set a spend limit in the Anthropic console if you want a hard cap.
+Free: the templates need no AI provider, and Resend's free plan covers the test emails.
+
+## Optional: Claude
+The Claude connection is still in the code, switched off. To let Claude write the messages:
+1. Add `ANTHROPIC_API_KEY` (an account with credits) in Vercel.
+2. In `index.html`, set `const USE_CLAUDE = true;` (and optionally change `MODEL`; add any new model
+   name to `ALLOWED_MODELS` in `api/chat.js`).
+If a Claude call fails, the app falls back to the templates automatically.

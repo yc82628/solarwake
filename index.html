@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SolarWake — AI Revenue Recovery for Solar Installers</title>
+<title>SolarWake — Revenue Recovery for Solar Installers</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -54,6 +54,10 @@
 const { useState, useRef, useEffect, useMemo } = React;
 
 // ================== CONFIG ==================
+// Messages come from built-in templates and keyword rules, so the demo needs no paid AI.
+// To let Claude write the messages instead, set USE_CLAUDE to true and add ANTHROPIC_API_KEY
+// (with credits) in Vercel. Everything falls back to the templates if a Claude call fails.
+const USE_CLAUDE = false;
 // Model string for the live Anthropic API. Verify/swap at https://docs.claude.com if needed.
 // Good options: "claude-sonnet-5" (best conversation) · "claude-haiku-5-5" (cheaper/faster).
 const MODEL = "claude-sonnet-5";
@@ -190,18 +194,6 @@ ${CHANNEL_STYLE[ch](false,co)}
 ${leadFacts(l,co)}
 Goal: book a free 15-minute call with a human advisor. Offer two specific time slots.
 ${JSON_RULES}`,
-    script:{
-      whatsapp:(l,co)=>[
-        { message:`So glad you replied! 😊 I re-ran your numbers with today's electricity prices — everything's on your personal page, incl. financing: ${portalUrl(l,co)}`, status:"warm", appointment:null },
-        { message:"Totally fair. Most homeowners we work with cover a big part of their bill with solar, and with financing there's no large upfront payment. Could I book you a free 15-min call with an advisor — Thursday 6pm or Friday morning? 🙂", status:"warm", appointment:null },
-        { message:"Perfect — you're booked for Thursday at 6:00 PM. You'll get a WhatsApp confirmation shortly. Talk soon! ☀️", status:"booked", appointment:"Thursday 6:00 PM" },
-      ],
-      email:(l,co)=>[
-        { message:`Hi ${first(l.name)},\n\nGreat to hear from you. I've re-run your numbers with today's electricity prices — your personal page shows the savings, payback and financing options side by side:\n${portalUrl(l,co)}\n\n${signoff(co,false)}`, status:"warm", appointment:null },
-        { message:`Hi ${first(l.name)},\n\nThat's a fair question. Most homeowners we work with cover a large part of their bill with solar, and with financing there's no large upfront payment.\n\nWould a free 15-minute call with one of our advisors help? I can offer Thursday at 18:00 or Friday at 10:00.\n\n${signoff(co,false)}`, status:"warm", appointment:null },
-        { message:`Hi ${first(l.name)},\n\nPerfect — you're booked for Thursday at 18:00. A calendar invitation is on its way.\n\n${signoff(co,false)}`, status:"booked", appointment:"Thursday 18:00" },
-      ],
-    },
   },
   Commercial: {
     tag:"B2B", label:"Business playbook", color:C.b2b, icon:"🏢",
@@ -220,20 +212,72 @@ ${CHANNEL_STYLE[ch](true,co)}
 ${leadFacts(l,co)}
 Goal: book a 20-minute call with a commercial advisor (and their decision-maker). Offer two specific time slots.
 ${JSON_RULES}`,
-    script:{
-      whatsapp:(l,co)=>{ const m=solarModel(l,co,{ bill:l.bill }); return [
-        { message:`Thanks for getting back to me. At today's prices the system saves roughly ${eur(m.savings)} a year with a payback of about ${fmtYears(m.payback)}. Full business case incl. depreciation and CO₂ for your ESG report: ${portalUrl(l,co)}`, status:"warm", appointment:null },
-        { message:"Understood — that's usually a CFO-level decision. Financing can be structured so the monthly savings cover most of the instalment. Shall I set up a 20-minute call with you and your CFO — Tuesday 10:00 or Wednesday 14:00?", status:"warm", appointment:null },
-        { message:"Done — Tuesday at 10:00 is booked with our commercial advisor. I'll send a calendar invite and a one-page ROI summary for your CFO beforehand.", status:"booked", appointment:"Tuesday 10:00" },
-      ]; },
-      email:(l,co)=>{ const m=solarModel(l,co,{ bill:l.bill }); return [
-        { message:`Dear ${dmName(l)},\n\nThank you for your reply. At current electricity prices, the ${l.kw} kW system would save approximately ${eur(m.savings)} per year, with a payback period of about ${fmtYears(m.payback)}.\n\nThe full business case, including financing, depreciation and the CO₂ figures for your ESG reporting, is here:\n${portalUrl(l,co)}\n\n${signoff(co,true)}`, status:"warm", appointment:null },
-        { message:`Dear ${dmName(l)},\n\nUnderstood — a decision like this usually involves your CFO. Financing can be structured so the monthly savings cover most of the instalment.\n\nWould a 20-minute call with you and your CFO work on Tuesday at 10:00 or Wednesday at 14:00?\n\n${signoff(co,true)}`, status:"warm", appointment:null },
-        { message:`Dear ${dmName(l)},\n\nConfirmed — Tuesday at 10:00 with our commercial advisor. I'll send a calendar invitation and a one-page ROI summary for your CFO ahead of the call.\n\n${signoff(co,true)}`, status:"booked", appointment:"Tuesday 10:00" },
-      ]; },
-    },
   },
 };
+
+// ================== REPLY TEMPLATES (no paid AI needed) ==================
+// The agent reads the lead's reply with keyword rules, answers that objection from the playbook,
+// and moves toward a booking from the second reply on. With USE_CLAUDE on, Claude writes replies instead.
+function classifyLead(text){
+  const t=text.toLowerCase();
+  if(/\bbook\b|schedule|when can we (talk|meet)|let'?s (talk|meet)|set up a call|call (me|us)\b|works for (me|us)|sounds good|(monday|tuesday|wednesday|thursday|friday)\b.*\b(works|is fine|ok|good)\b|^(ok|okay|sure|yes)[\s,!.—-]*$/.test(t)) return "book";
+  if(/expensive|price|cost|afford|too much/.test(t)) return "price";
+  if(/another quote|other quote|competitor|compar|cheaper offer/.test(t)) return "competitor";
+  if(/\bcfo\b|sign off|sign-off|board|boss|partner|wife|husband|approv/.test(t)) return "decider";
+  if(/cash ?flow|budget|tight/.test(t)) return "cashflow";
+  if(/save|saving|bill|\broi\b|payback|numbers|figures/.test(t)) return "numbers";
+  if(/timing|later|not now|next year|busy|tricky/.test(t)) return "timing";
+  if(/forgot|still interested|still on our list|interested|\byes\b/.test(t)) return "interest";
+  return "other";
+}
+
+function leadAnswer(l, co, intent){
+  const m=solarModel(l,co,{ bill:l.bill }), link=portalUrl(l,co);
+  const A = l.seg==="Commercial" ? {
+    numbers:`At today's prices the ${l.kw} kW system saves about ${eur(m.savings)} a year, with a payback of about ${fmtYears(m.payback)}. The full business case, including depreciation and CO₂ figures for your ESG reporting, is here: ${link}`,
+    decider:"Understood, that's usually a CFO-level decision. I can prepare a one-page ROI summary for them, so the call is short and to the point.",
+    cashflow:"That's a common concern. Financing can be structured so the monthly savings cover most of the instalment, which keeps the system close to cash-flow neutral from early on.",
+    price:`Understood. At about ${eur(m.savings)} in savings per year, the system pays for itself in roughly ${fmtYears(m.payback)}, and financing spreads the cost. Details: ${link}`,
+    competitor:"It makes sense to compare. We're happy to go through both offers line by line: yield, warranties and total cost of ownership.",
+    timing:`Understood. The quoted price is held for ${ECON.priceLockDays} more days, so a short call now keeps your options open without any commitment.`,
+    interest:`Good to hear it's still on the agenda. I've updated the business case with current prices: ${link}`,
+    other:`Thanks for your reply. The updated business case, with payback and CO₂ figures, is here: ${link}`,
+  } : {
+    numbers:`Yes. On your ${eur(l.bill)} monthly bill, the system saves roughly ${eur(m.savings/12)} a month (${eur(m.savings)} a year) and pays for itself in about ${fmtYears(m.payback)}. Your numbers are here: ${link}`,
+    price:`Totally understandable. With financing there's no big upfront payment, and your page shows the monthly instalment next to your monthly savings: ${link}`,
+    competitor:"Great that you're comparing! We're happy to go through both quotes side by side (panels, warranty and price) so you can decide with confidence.",
+    timing:`No rush at all. Your price is held for ${ECON.priceLockDays} more days, so a quick call now just keeps the option open.`,
+    interest:`No worries, it happens! I've re-run your numbers with today's prices: about ${eur(m.savings)} a year in savings. Everything's here: ${link}`,
+    decider:"Of course, it's a decision to make together. We can do the call when you're both available, and I'll send the numbers beforehand.",
+    cashflow:`Totally fair. With financing there's no big upfront payment, so you can start saving straight away: ${link}`,
+    other:`Thanks for getting back to me! Your updated numbers, with financing options, are here: ${link}`,
+  };
+  return A[intent];
+}
+
+const slotAsk = l => l.seg==="Commercial"
+  ? "Would a 20-minute call with you and your CFO work on Tuesday at 10:00 or Wednesday at 14:00?"
+  : "Shall I book you a free 15-minute call with an advisor, Thursday at 18:00 or Friday at 10:00?";
+function pickSlot(l, text){
+  const t=text.toLowerCase();
+  if(l.seg==="Commercial") return /wednesday|14/.test(t)?"Wednesday 14:00":"Tuesday 10:00";
+  return /friday|morning|\b10\b/.test(t)?"Friday 10:00":"Thursday 18:00";
+}
+
+function leadReply(l, co, history){
+  const last=history[history.length-1].text, intent=classifyLead(last), biz=l.seg==="Commercial";
+  const turn=history.filter(m=>m.role==="customer").length;
+  let body, status="warm", appointment=null, ask=false;
+  if(intent==="book"){
+    appointment=pickSlot(l,last); status="booked";
+    body=biz?`Confirmed: ${appointment} with our commercial advisor. I'll send a calendar invitation and a one-page ROI summary for your CFO beforehand.`
+            :`Perfect, you're booked for ${appointment}. ${l.channel==="email"?"A calendar invitation is on its way.":"You'll get a confirmation shortly. Talk soon! ☀️"}`;
+  } else { body=leadAnswer(l,co,intent); ask=turn>=2; }
+  const message = l.channel==="email"
+    ? `${biz?`Dear ${dmName(l)}`:`Hi ${first(l.name)}`},\n\n${body}${ask?`\n\n${slotAsk(l)}`:""}\n\n${signoff(co,biz)}`
+    : `${body}${ask?` ${slotAsk(l)}${biz?"":" 🙂"}`:""}`;
+  return { message, status, appointment };
+}
 
 function parseAgent(raw){
   let t=(raw||"").trim().replace(/```json/gi,"").replace(/```/g,"").trim();
@@ -657,7 +701,7 @@ function App(){
        .catch(e=>{ mark({ state:"error", note:e.message }); log(`⚠ Email for ${who} not sent: ${e.message}`,"sys"); });
   }
 
-  // ---------- Invoices: payment reminders, AI replies, payments ----------
+  // ---------- Invoices: payment reminders, smart replies, payments ----------
   const setInvConvo=(id,fn)=>setInvConvos(c=>({ ...c, [id]:fn(c[id]||[]) }));
   const patchInv=(id,patch)=>setInvoices(v=>v.map(i=>i.id===id?{ ...i, ...patch }:i));
   const deliverInv=(inv,msg)=>mailOut({ to:inv.email, subject:msg.subject, text:msg.text, fromName:`${coOf(inv).name} Billing` }, inv.name,
@@ -670,7 +714,7 @@ function App(){
     busy.current.add(inv.id); setInvTyping(inv.id);
     const co=coOf(inv);
     let text;
-    if(demoMode){ await sleep(700); text=reminderScript(inv,co,step); }
+    if(!USE_CLAUDE||demoMode){ await sleep(700); text=reminderScript(inv,co,step); }
     else{
       try{ text=parseBilling(await callClaude(billingSystem(inv,co,step),[{ role:"user", content:`(Write the "${step.name}" email for this invoice now.)` }])).message; }
       catch{ text=reminderScript(inv,co,step); }
@@ -702,7 +746,7 @@ function App(){
     busy.current.add(inv.id); setInvTyping(inv.id);
     const co=coOf(inv);
     let intent=classifyReply(history[history.length-1].text), text, promise=null;
-    if(demoMode){ await sleep(800); text=replyScript(inv,co,intent); }
+    if(!USE_CLAUDE||demoMode){ await sleep(800); text=replyScript(inv,co,intent); }
     else{
       try{
         const msgs=[{ role:"user", content:"(Billing thread opened. You sent the first email below.)" },
@@ -761,16 +805,11 @@ function App(){
     busy.current.add(l.id);
     const co=coOf(l), play=PLAYBOOKS[l.seg];
     setTypingId(l.id);
-    const turn=history.filter(m=>m.role==="customer").length;
-    const script=play.script[l.channel](l,co);
-    let reply;
-    try{
-      if(demoMode){ await sleep(800); reply=script[Math.min(turn-1,script.length-1)]; }
-      else reply=parseAgent(await callClaude(play.system(l,co,l.channel), toApi(history)));
-    }catch(e){
-      // Auto-fallback to script if the live call fails — the demo keeps going.
-      reply=script[Math.min(turn-1,script.length-1)];
+    let reply=null;
+    if(USE_CLAUDE&&!demoMode){
+      try{ reply=parseAgent(await callClaude(play.system(l,co,l.channel), toApi(history))); }catch{ reply=null; }
     }
+    if(!reply){ await sleep(900); reply=leadReply(l,co,history); }
     const subject=history[0].subject?`Re: ${history[0].subject}`:undefined;
     const msg={ id:msgId(), role:"agent", text:reply.message, subject, time:now() };
     const full=[...history,msg];
@@ -794,7 +833,7 @@ function App(){
     setBriefs(b=>({ ...b, [l.id]:"loading" }));
     let brief;
     try{
-      if(demoMode||!history.length) throw new Error("offline");
+      if(!USE_CLAUDE||demoMode||!history.length) throw new Error("templates");
       const transcript=history.map(m=>`${m.role==="agent"?"Agent":"Lead"}: ${m.text}`).join("\n");
       const raw=await callClaude(BRIEF_SYSTEM,[{ role:"user", content:`Lead: ${l.name} (${l.seg}, ${l.kw} kW, quote ${eur(l.quote)}, stalled on "${l.lost}"${l.dm?`, decision-maker ${l.dm}`:""}). Booked ${via}.\n\nTranscript:\n${transcript}` }]);
       const t=raw.slice(raw.indexOf("{"), raw.lastIndexOf("}")+1);
@@ -868,13 +907,14 @@ function App(){
             </div>
           </button>
           <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-            <button onClick={()=>setDemoMode(d=>!d)} title="Toggle scripted demo mode (no network needed)"
+            <button onClick={()=>setDemoMode(d=>!d)} title="Rehearsal mode never sends real emails. Use it to practise the demo."
               style={{display:"inline-flex",alignItems:"center",gap:7,fontSize:12,fontWeight:700,cursor:"pointer",
                 color:demoMode?C.night:C.sub,background:demoMode?C.gold:C.panel,border:`1px solid ${demoMode?C.gold:C.line}`,padding:"7px 12px",borderRadius:999}}>
-              <span style={{width:7,height:7,borderRadius:999,background:demoMode?C.night:C.green}}/> {demoMode?"Demo Mode (scripted)":"Live AI"}
+              <span style={{width:7,height:7,borderRadius:999,background:demoMode?C.night:C.green}}/> {demoMode?"Rehearsal: nothing sent":"Live mode"}
             </button>
-            <div style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:C.sub,background:C.panel,border:`1px solid ${C.line}`,padding:"7px 12px",borderRadius:999}}>
-              <span style={{width:7,height:7,borderRadius:999,background:C.gold,boxShadow:`0 0 7px ${C.gold}`}}/> Powered by Claude · Anthropic API
+            <div title={USE_CLAUDE?"Messages are written by Claude, with templates as a fallback":"Messages come from built-in templates; replies are understood with keyword rules. No paid AI needed."}
+              style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:C.sub,background:C.panel,border:`1px solid ${C.line}`,padding:"7px 12px",borderRadius:999}}>
+              <span style={{width:7,height:7,borderRadius:999,background:C.gold,boxShadow:`0 0 7px ${C.gold}`}}/> {USE_CLAUDE?"Powered by Claude · Anthropic API":"Smart templates · rule-based replies"}
             </div>
             <div title={emailCfg.enabled?"Agent emails are really sent, redirected to this test inbox (leads are fictional)":"Set RESEND_API_KEY to send real emails"}
               style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:emailCfg.enabled?"#BBF7D0":C.sub,background:C.panel,border:`1px solid ${emailCfg.enabled?C.green:C.line}`,padding:"7px 12px",borderRadius:999}}>
@@ -919,7 +959,7 @@ function App(){
         {tab==="ledger" && <LedgerView txns={txns}/>}
 
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:16,flexWrap:"wrap",gap:10}}>
-          <div style={{fontSize:12,color:C.sub}}>⚡ The agent runs live on Anthropic's Claude API, over WhatsApp or email. Same lead volume → more booked appointments.</div>
+          <div style={{fontSize:12,color:C.sub}}>⚡ Automated follow-ups over email or WhatsApp, with rule-based reply handling. Same lead volume → more booked appointments.</div>
           <button onClick={reset} style={{display:"inline-flex",alignItems:"center",gap:7,background:C.panel,color:C.sub,border:`1px solid ${C.line}`,padding:"8px 14px",borderRadius:999,fontSize:13,cursor:"pointer",fontWeight:600}}>↺ Reset demo</button>
         </div>
       </div>
@@ -1968,44 +2008,44 @@ function LedgerView({ txns }){
 const LT = {
   en:{ skip:"Skip to content", nav:["Product","How it works","Solutions","Trust"], signin:"Sign in", book:"Book a demo",
     eyebrow:"Revenue recovery for solar installers", h1:"Get paid for the solar work you've already done",
-    sub:"SolarWake's AI agent follows up on quotes that went quiet and invoices that haven't been paid, by email or WhatsApp, in the right tone for homeowners and businesses.",
+    sub:"SolarWake automatically follows up on quotes that went quiet and invoices that haven't been paid, by email or WhatsApp, in the right tone for homeowners and businesses.",
     cta:"Try the live demo", cta2:"See how it works",
-    intro:"One AI agent for the money that slips through the cracks.",
+    intro:"One assistant for the money that slips through the cracks.",
     stats:["of quotes waiting in the demo pipeline","overdue invoices ready for a gentle reminder","real people emailed: every demo contact is fictional"],
     productTitle:"Three tools, one platform", open:"Open in demo",
     products:[["Quote reactivation","Re-engages leads who got a quote and went quiet, answers their questions and books a call with your advisor."],
-      ["Payment reminders","Polite reminders that get firmer after the due date, with a pay-now link, instalments and AI replies."],
+      ["Payment reminders","Polite reminders that get firmer after the due date, with a pay-now link, instalments and smart replies."],
       ["Transaction ledger","Every payment in and out, filtered by any period, with missing documents flagged for your accountant."]],
     howTitle:"How it works",
     how:[["Connect your data","Import quotes and invoices from your CRM or accounting tool."],["Pick the playbook","Homeowners get a warm, simple tone. Businesses get invoice numbers, POs and their accounts team."],
-      ["Let the agent follow up","Emails and WhatsApps go out on schedule. The AI reads replies: already paid, needs instalments, has a problem."],["Get paid, stay audit-ready","Calls get booked, invoices get paid, and every transaction is logged with its document."]],
+      ["Let the agent follow up","Emails and WhatsApps go out on schedule. SolarWake recognises replies: already paid, needs instalments, has a problem."],["Get paid, stay audit-ready","Calls get booked, invoices get paid, and every transaction is logged with its document."]],
     solTitle:"Built for both sides of your business",
     b2c:["Homeowners (B2C)",["Friendly tone, first names, no jargon","Savings page and 3 monthly instalments","WhatsApp or email, whichever they prefer"]],
     b2b:["Businesses (B2B)",["Writes to the accounts payable team","Quotes invoice and PO numbers, offers statements","Books calls with the CFO or owner"]],
     trustTitle:"Trust and data protection",
     trust:["An opt-out in every message and a sending limit per customer","Every message, reply and payment is logged for audits","Problems go to a human: a dispute pauses reminders automatically","This demo uses fictional contacts only; real test emails go to one inbox you control"],
     ctaTitle:"See it work with real emails", ctaSub:"Open the demo, send a reminder and watch it arrive in the test inbox.",
-    footer:"SolarWake · Hackathon demo · AI by Claude (Anthropic)" },
+    footer:"SolarWake · Hackathon demo · Smart templates, no customer data" },
   de:{ skip:"Zum Inhalt springen", nav:["Produkt","So funktioniert's","Lösungen","Vertrauen"], signin:"Anmelden", book:"Demo buchen",
     eyebrow:"Umsatz zurückholen für Solarinstallateure", h1:"Werden Sie für Solararbeit bezahlt, die Sie schon erledigt haben",
-    sub:"Der KI-Agent von SolarWake fasst bei Angeboten nach, die eingeschlafen sind, und bei Rechnungen, die noch offen sind: per E-Mail oder WhatsApp, im passenden Ton für Privat- und Geschäftskunden.",
+    sub:"SolarWake fasst automatisch bei Angeboten nach, die eingeschlafen sind, und bei Rechnungen, die noch offen sind: per E-Mail oder WhatsApp, im passenden Ton für Privat- und Geschäftskunden.",
     cta:"Live-Demo testen", cta2:"So funktioniert's",
-    intro:"Ein KI-Agent für das Geld, das sonst durch die Lappen geht.",
+    intro:"Ein Assistent für das Geld, das sonst durch die Lappen geht.",
     stats:["an Angeboten warten in der Demo-Pipeline","überfällige Rechnungen für eine freundliche Erinnerung","echte Personen angeschrieben: alle Demo-Kontakte sind fiktiv"],
     productTitle:"Drei Werkzeuge, eine Plattform", open:"In der Demo öffnen",
     products:[["Angebote reaktivieren","Spricht Interessenten erneut an, die ein Angebot erhalten und sich nicht gemeldet haben, beantwortet Fragen und bucht ein Beratungsgespräch."],
-      ["Zahlungserinnerungen","Höfliche Erinnerungen, die nach dem Fälligkeitsdatum bestimmter werden, mit Bezahl-Link, Ratenzahlung und KI-Antworten."],
+      ["Zahlungserinnerungen","Höfliche Erinnerungen, die nach dem Fälligkeitsdatum bestimmter werden, mit Bezahl-Link, Ratenzahlung und smarten Antworten."],
       ["Transaktionsjournal","Alle Zahlungseingänge und -ausgänge, nach beliebigem Zeitraum gefiltert, fehlende Belege markiert für Ihre Buchhaltung."]],
     howTitle:"So funktioniert's",
     how:[["Daten verbinden","Angebote und Rechnungen aus CRM oder Buchhaltung importieren."],["Playbook wählen","Privatkunden bekommen einen warmen, einfachen Ton. Firmen bekommen Rechnungs- und Bestellnummern und ihre Buchhaltung."],
-      ["Agent fasst nach","E-Mails und WhatsApps gehen planmäßig raus. Die KI versteht Antworten: schon bezahlt, Raten gewünscht, es gibt ein Problem."],["Bezahlt werden, prüfbereit bleiben","Termine werden gebucht, Rechnungen bezahlt und jede Transaktion mit Beleg protokolliert."]],
+      ["Agent fasst nach","E-Mails und WhatsApps gehen planmäßig raus. SolarWake erkennt Antworten: schon bezahlt, Raten gewünscht, es gibt ein Problem."],["Bezahlt werden, prüfbereit bleiben","Termine werden gebucht, Rechnungen bezahlt und jede Transaktion mit Beleg protokolliert."]],
     solTitle:"Für beide Seiten Ihres Geschäfts",
     b2c:["Privatkunden (B2C)",["Freundlicher Ton, beim Vornamen, ohne Fachjargon","Ersparnis-Seite und 3 Monatsraten","WhatsApp oder E-Mail, ganz wie gewünscht"]],
     b2b:["Geschäftskunden (B2B)",["Schreibt an die Kreditorenbuchhaltung","Nennt Rechnungs- und Bestellnummern, bietet Kontoauszüge an","Bucht Termine mit CFO oder Inhaber"]],
     trustTitle:"Vertrauen und Datenschutz",
     trust:["Abmeldelink in jeder Nachricht und ein Versandlimit pro Kunde","Jede Nachricht, Antwort und Zahlung wird für Prüfungen protokolliert","Probleme gehen an einen Menschen: Reklamationen pausieren Erinnerungen automatisch","Diese Demo nutzt nur fiktive Kontakte; echte Test-E-Mails gehen an ein Postfach Ihrer Wahl"],
     ctaTitle:"Mit echten E-Mails ausprobieren", ctaSub:"Demo öffnen, Erinnerung senden und zusehen, wie sie im Test-Postfach ankommt.",
-    footer:"SolarWake · Hackathon-Demo · KI von Claude (Anthropic)" },
+    footer:"SolarWake · Hackathon-Demo · Smarte Vorlagen, keine Kundendaten" },
 };
 
 // Our own rooftop illustration (no stock photo), drawn to sit behind the hero text.
