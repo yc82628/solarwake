@@ -1,7 +1,7 @@
 # SolarWake — live demo site
 
 **AI revenue recovery for solar installers.** Installers pay for leads, send quotes, and most go quiet.
-SolarWake works that dead pipeline over WhatsApp and books advisor calls, with no new ad spend.
+SolarWake works that dead pipeline over WhatsApp or email and books advisor calls, with no new ad spend.
 The conversation is generated **live by Anthropic's Claude API**.
 
 The app has two sides:
@@ -15,6 +15,11 @@ Every lead is handled by its own **playbook**:
 - 🏠 **Homeowner (B2C):** friendly tone, bill savings, financing, price-lock deadline.
 - 🏢 **Business (B2B):** professional tone, ROI and payback, depreciation, CO₂ for ESG reporting, books the call with the CFO/owner.
 
+Each lead also has a **channel**. Many companies ignore vendor WhatsApps, so business leads default to
+✉️ **email** (inbox-style thread with subject lines and formal sign-offs) and homeowners to 💬 **WhatsApp**.
+You can switch a lead's channel in the console before the conversation starts. Emails are shown in the
+app and are not actually sent.
+
 No external CRM: leads live in the app. A small serverless function keeps your API key off the browser.
 
 ```
@@ -22,6 +27,19 @@ index.html      the whole app (React via CDN, no build step)
 api/chat.js      serverless proxy -> api.anthropic.com (holds your key)
 package.json     lets Vercel recognise the project
 ```
+
+---
+
+## Test locally with the live AI (before deploying)
+
+1. Create a file named `.env.local` in this folder containing one line (it is git-ignored):
+   ```
+   ANTHROPIC_API_KEY=sk-ant-...
+   ```
+2. Run `npm run local` (Node 22.9+; no `npm install` needed).
+3. Open http://localhost:3000 and leave the toggle on **Live AI**.
+
+`dev-server.mjs` serves the page and runs `api/chat.js` exactly as Vercel will.
 
 ---
 
@@ -68,7 +86,8 @@ In the Vercel project -> Settings -> Domains -> add a domain you own. The free
   3. Open a homeowner lead -> **Start reactivation** -> tap the quick-reply chips. The agent shares the customer-page link.
   4. Click the link -> **Customer Page**: drag the bill slider, toggle the battery, pick a slot, confirm.
   5. Back in the Console: the lead is **Booked**, the KPIs update and an **advisor handoff brief** appears.
-  6. Switch to **🏢 Businesses · B2B** and repeat with a commercial lead to show the CFO playbook.
+  6. Switch to **🏢 Businesses · B2B**, open a commercial lead and **Send reactivation email**. Reply as the
+     company from the inbox to show the CFO playbook over email.
   7. Finish on the **ROI calculator** with the installer's own numbers.
 
 ## Change the model

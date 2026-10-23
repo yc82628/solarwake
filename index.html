@@ -51,23 +51,26 @@ const COMPANIES = [
 ];
 // bill = current electricity bill per month (€). lost = why the deal stalled. dm = decision-maker (B2B).
 const CONTACTS = [
-  {id:"C-1001",co:"SW-001",name:"Michael Weber",seg:"Residential",city:"Munich",kw:8,quote:14200,days:47,status:"Cold",phone:"+491511234567",bill:125,src:"Google Ads",lost:"Price felt high"},
-  {id:"C-1002",co:"SW-001",name:"Sofia Klein",seg:"Residential",city:"Munich",kw:6.5,quote:9800,days:62,status:"Contacting",phone:"+491602345678",bill:95,src:"Website form",lost:"Timing"},
-  {id:"C-1003",co:"SW-001",name:"Jonas Braun",seg:"Residential",city:"Augsburg",kw:11,quote:21400,days:38,status:"Warm",phone:"+491703456789",bill:170,src:"Referral",lost:"Competing quote"},
-  {id:"C-1004",co:"SW-001",name:"Amelie Roth",seg:"Residential",city:"Munich",kw:5.5,quote:12100,days:90,status:"Cold",phone:"+491514567890",bill:85,src:"Facebook Ads",lost:"Unsure about savings"},
-  {id:"C-1005",co:"SW-001",name:"David Fischer",seg:"Residential",city:"Rosenheim",kw:9.5,quote:17600,days:51,status:"Cold",phone:"+491605678901",bill:140,src:"Google Ads",lost:"Price felt high"},
-  {id:"C-1006",co:"SW-001",name:"Bäckerei Hofmann GmbH",seg:"Commercial",city:"Munich",kw:42,quote:48500,days:73,status:"Cold",phone:"+498912345678",bill:1450,src:"Trade fair",lost:"Cash flow",dm:"Thomas Hofmann (Owner)"},
-  {id:"C-1007",co:"SW-001",name:"Weber & Sohn Logistik",seg:"Commercial",city:"Dachau",kw:95,quote:112000,days:44,status:"Warm",phone:"+498131234567",bill:3900,src:"LinkedIn",lost:"Needs CFO sign-off",dm:"Katrin Weber (CFO)"},
-  {id:"C-1008",co:"SW-002",name:"Lena Schuster",seg:"Residential",city:"Berlin",kw:7,quote:13100,days:55,status:"Cold",phone:"+491512223344",bill:110,src:"Google Ads",lost:"Timing"},
-  {id:"C-1009",co:"SW-002",name:"Paul Neumann",seg:"Residential",city:"Potsdam",kw:10,quote:19800,days:29,status:"Contacting",phone:"+491603334455",bill:155,src:"Website form",lost:"Competing quote"},
-  {id:"C-1010",co:"SW-002",name:"Café Sonnendeck",seg:"Commercial",city:"Berlin",kw:28,quote:36700,days:81,status:"Cold",phone:"+493044556677",bill:980,src:"Walk-in",lost:"Unsure about payback",dm:"Mara Lenz (Owner)"},
-  {id:"C-1012",co:"SW-003",name:"Erik Hansen",seg:"Residential",city:"Hamburg",kw:8.5,quote:15600,days:67,status:"Cold",phone:"+491515556677",bill:120,src:"Google Ads",lost:"Price felt high"},
-  {id:"C-1013",co:"SW-003",name:"Nina Fischer",seg:"Residential",city:"Lübeck",kw:7.5,quote:13900,days:33,status:"Warm",phone:"+491606667788",bill:105,src:"Referral",lost:"Timing"},
-  {id:"C-1014",co:"SW-003",name:"Nordwind Hotel GmbH",seg:"Commercial",city:"Hamburg",kw:60,quote:74000,days:58,status:"Cold",phone:"+494030001122",bill:2600,src:"LinkedIn",lost:"Needs board approval",dm:"Jan Petersen (GM)"},
-  {id:"C-1019",co:"SW-005",name:"Andreas Meier",seg:"Residential",city:"Zurich",kw:9,quote:22500,days:41,status:"Warm",phone:"+41791234567",bill:150,src:"Website form",lost:"Competing quote"},
-  {id:"C-1020",co:"SW-005",name:"Claudia Brunner",seg:"Residential",city:"Winterthur",kw:6.5,quote:17800,days:60,status:"Cold",phone:"+41782345678",bill:100,src:"Google Ads",lost:"Unsure about savings"},
-  {id:"C-1021",co:"SW-005",name:"Bergblick Praxis AG",seg:"Commercial",city:"Zug",kw:22,quote:39900,days:53,status:"Contacting",phone:"+41412223344",bill:820,src:"Referral",lost:"Cash flow",dm:"Dr. Sabine Graf (Partner)"},
+  {id:"C-1001",co:"SW-001",name:"Michael Weber",seg:"Residential",city:"Munich",kw:8,quote:14200,days:47,status:"Cold",phone:"+491511234567",email:"michael.weber@gmx.de",bill:125,src:"Google Ads",lost:"Price felt high"},
+  {id:"C-1002",co:"SW-001",name:"Sofia Klein",seg:"Residential",city:"Munich",kw:6.5,quote:9800,days:62,status:"Contacting",phone:"+491602345678",email:"sofia.klein@web.de",bill:95,src:"Website form",lost:"Timing"},
+  {id:"C-1003",co:"SW-001",name:"Jonas Braun",seg:"Residential",city:"Augsburg",kw:11,quote:21400,days:38,status:"Warm",phone:"+491703456789",email:"jonas.braun@gmail.com",bill:170,src:"Referral",lost:"Competing quote"},
+  {id:"C-1004",co:"SW-001",name:"Amelie Roth",seg:"Residential",city:"Munich",kw:5.5,quote:12100,days:90,status:"Cold",phone:"+491514567890",email:"amelie.roth@t-online.de",bill:85,src:"Facebook Ads",lost:"Unsure about savings"},
+  {id:"C-1005",co:"SW-001",name:"David Fischer",seg:"Residential",city:"Rosenheim",kw:9.5,quote:17600,days:51,status:"Cold",phone:"+491605678901",email:"d.fischer@gmx.de",bill:140,src:"Google Ads",lost:"Price felt high"},
+  {id:"C-1006",co:"SW-001",name:"Bäckerei Hofmann GmbH",seg:"Commercial",city:"Munich",kw:42,quote:48500,days:73,status:"Cold",phone:"+498912345678",email:"t.hofmann@baeckerei-hofmann.de",bill:1450,src:"Trade fair",lost:"Cash flow",dm:"Thomas Hofmann (Owner)"},
+  {id:"C-1007",co:"SW-001",name:"Weber & Sohn Logistik",seg:"Commercial",city:"Dachau",kw:95,quote:112000,days:44,status:"Warm",phone:"+498131234567",email:"k.weber@weber-sohn-logistik.de",bill:3900,src:"LinkedIn",lost:"Needs CFO sign-off",dm:"Katrin Weber (CFO)"},
+  {id:"C-1008",co:"SW-002",name:"Lena Schuster",seg:"Residential",city:"Berlin",kw:7,quote:13100,days:55,status:"Cold",phone:"+491512223344",email:"lena.schuster@posteo.de",bill:110,src:"Google Ads",lost:"Timing"},
+  {id:"C-1009",co:"SW-002",name:"Paul Neumann",seg:"Residential",city:"Potsdam",kw:10,quote:19800,days:29,status:"Contacting",phone:"+491603334455",email:"paul.neumann@gmail.com",bill:155,src:"Website form",lost:"Competing quote"},
+  {id:"C-1010",co:"SW-002",name:"Café Sonnendeck",seg:"Commercial",city:"Berlin",kw:28,quote:36700,days:81,status:"Cold",phone:"+493044556677",email:"mara@cafe-sonnendeck.de",bill:980,src:"Walk-in",lost:"Unsure about payback",dm:"Mara Lenz (Owner)"},
+  {id:"C-1012",co:"SW-003",name:"Erik Hansen",seg:"Residential",city:"Hamburg",kw:8.5,quote:15600,days:67,status:"Cold",phone:"+491515556677",email:"erik.hansen@web.de",bill:120,src:"Google Ads",lost:"Price felt high"},
+  {id:"C-1013",co:"SW-003",name:"Nina Fischer",seg:"Residential",city:"Lübeck",kw:7.5,quote:13900,days:33,status:"Warm",phone:"+491606667788",email:"nina.fischer@gmx.de",bill:105,src:"Referral",lost:"Timing"},
+  {id:"C-1014",co:"SW-003",name:"Nordwind Hotel GmbH",seg:"Commercial",city:"Hamburg",kw:60,quote:74000,days:58,status:"Cold",phone:"+494030001122",email:"j.petersen@nordwind-hotel.de",bill:2600,src:"LinkedIn",lost:"Needs board approval",dm:"Jan Petersen (GM)"},
+  {id:"C-1019",co:"SW-005",name:"Andreas Meier",seg:"Residential",city:"Zurich",kw:9,quote:22500,days:41,status:"Warm",phone:"+41791234567",email:"a.meier@bluewin.ch",bill:150,src:"Website form",lost:"Competing quote"},
+  {id:"C-1020",co:"SW-005",name:"Claudia Brunner",seg:"Residential",city:"Winterthur",kw:6.5,quote:17800,days:60,status:"Cold",phone:"+41782345678",email:"claudia.brunner@gmail.com",bill:100,src:"Google Ads",lost:"Unsure about savings"},
+  {id:"C-1021",co:"SW-005",name:"Bergblick Praxis AG",seg:"Commercial",city:"Zug",kw:22,quote:39900,days:53,status:"Contacting",phone:"+41412223344",email:"s.graf@bergblick-praxis.ch",bill:820,src:"Referral",lost:"Cash flow",dm:"Dr. Sabine Graf (Partner)"},
 ];
+
+// Businesses often ignore WhatsApp from vendors, so B2B leads default to email; homeowners to WhatsApp.
+const INITIAL_LEADS = CONTACTS.map(l=>({ ...l, channel:l.seg==="Commercial"?"email":"whatsapp" }));
 
 // Assumptions for the B2B revenue KPIs (shown in the UI so judges can see them).
 const ASSUME = { closeRate:0.35, cpa:{ Residential:180, Commercial:650 } }; // cpa = ad cost of one fresh booked appointment
@@ -116,7 +119,7 @@ function nextWeekdays(n){
 }
 const dayLabel = d => d.toLocaleDateString("en-GB",{ weekday:"short", day:"numeric", month:"short" });
 
-// ================== PLAYBOOKS (B2C homeowner vs B2B business) ==================
+// ================== PLAYBOOKS (B2C homeowner vs B2B business) × CHANNEL (WhatsApp vs email) ==================
 const JSON_RULES = `Reply with ONLY valid JSON, no markdown, no backticks: {"message":"<reply>","status":"contacting|warm|booked","appointment":<null or "Day at Time">}
 Use "warm" once interest returns; use "booked" and fill "appointment" ONLY once a specific day/time is agreed. Move toward a booking within a few messages.`;
 
@@ -129,42 +132,79 @@ function leadFacts(lead, co){
 - Personal page with live numbers, financing and self-booking: ${portalUrl(lead,co)}`;
 }
 
+const CHANNELS = {
+  whatsapp:{ label:"WhatsApp", icon:"💬" },
+  email:{ label:"Email", icon:"✉️" },
+};
+const agentEmail = co => `lina@${co.slug}.solarwake.app`;
+const dmName = l => l.dm ? l.dm.replace(/\s*\(.*\)$/,"") : l.name;
+const signoff = (co, biz) => `Kind regards,\nLina\n${co.name}${biz?" Business Energy":""}`;
+
+const CHANNEL_STYLE = {
+  whatsapp:biz=>`Channel: WhatsApp. Short messages (${biz?"1-3 sentences, no emoji":"1-2 sentences, an occasional emoji"}).`,
+  email:(biz,co)=>`Channel: email. Write only the email body: greet them by name, 2-4 short paragraphs, then sign off with "Kind regards,", "Lina" and "${co.name}${biz?" Business Energy":""}" on separate lines. Plain text, no emoji, under 160 words. No subject line.`,
+};
+
 const PLAYBOOKS = {
   Residential: {
     tag:"B2C", label:"Homeowner playbook", color:C.b2c, icon:"🏠",
     focus:"Bill savings · financing · price-lock deadline",
     quick:["Oh right, I forgot about this","It's honestly a bit expensive","I already got another quote","Does it really lower my bill?","Ok sure — when can we talk?"],
     replies:["Oh right, I forgot about this — still interested actually","Is the price still the same?","Hmm, how much would I really save?"],
-    opener:(l,co)=>`Hi ${first(l.name)}! 👋 It's Lina from ${co.name}. A while back we put together a solar quote for your home — your price is still held for ${ECON.priceLockDays} more days, so I wanted to check in. Are you still thinking about going solar? ☀️`,
-    system:(l,co)=>`You are SolarWake, an AI reactivation assistant for ${co.name}, following up over WhatsApp as "Lina".
-You are messaging homeowner ${l.name}, who received a solar quote and then went quiet.
-Playbook (B2C homeowner): warm, empathetic, never pushy. Short WhatsApp messages (1-2 sentences, an occasional emoji). Focus on a lower electricity bill, financing with no big upfront payment, and the honest price-lock deadline. When they ask about cost or savings, share their personal page link once.
+    opener:{
+      whatsapp:(l,co)=>({ text:`Hi ${first(l.name)}! 👋 It's Lina from ${co.name}. A while back we put together a solar quote for your home — your price is still held for ${ECON.priceLockDays} more days, so I wanted to check in. Are you still thinking about going solar? ☀️` }),
+      email:(l,co)=>({ subject:`Your solar quote for ${l.city} — price still held`,
+        text:`Hi ${first(l.name)},\n\nA few weeks ago we put together a quote for a ${l.kw} kW solar system on your home. Your price is still held for ${ECON.priceLockDays} more days, so I wanted to check in before it expires.\n\nAre you still thinking about going solar? I'm happy to re-run the numbers with today's electricity prices.\n\n${signoff(co,false)}` }),
+    },
+    system:(l,co,ch)=>`You are SolarWake, an AI reactivation assistant for ${co.name}, following up as "Lina".
+You are writing to homeowner ${l.name}, who received a solar quote and then went quiet.
+Playbook (B2C homeowner): warm, empathetic, never pushy. Focus on a lower electricity bill, financing with no big upfront payment, and the honest price-lock deadline. When they ask about cost or savings, share their personal page link once.
+${CHANNEL_STYLE[ch](false,co)}
 ${leadFacts(l,co)}
 Goal: book a free 15-minute call with a human advisor. Offer two specific time slots.
 ${JSON_RULES}`,
-    script:(l,co)=>[
-      { message:`So glad you replied! 😊 I re-ran your numbers with today's electricity prices — everything's on your personal page, incl. financing: ${portalUrl(l,co)}`, status:"warm", appointment:null },
-      { message:"Totally fair. Most homeowners we work with cover a big part of their bill with solar, and with financing there's no large upfront payment. Could I book you a free 15-min call with an advisor — Thursday 6pm or Friday morning? 🙂", status:"warm", appointment:null },
-      { message:"Perfect — you're booked for Thursday at 6:00 PM. You'll get a WhatsApp confirmation shortly. Talk soon! ☀️", status:"booked", appointment:"Thursday 6:00 PM" },
-    ],
+    script:{
+      whatsapp:(l,co)=>[
+        { message:`So glad you replied! 😊 I re-ran your numbers with today's electricity prices — everything's on your personal page, incl. financing: ${portalUrl(l,co)}`, status:"warm", appointment:null },
+        { message:"Totally fair. Most homeowners we work with cover a big part of their bill with solar, and with financing there's no large upfront payment. Could I book you a free 15-min call with an advisor — Thursday 6pm or Friday morning? 🙂", status:"warm", appointment:null },
+        { message:"Perfect — you're booked for Thursday at 6:00 PM. You'll get a WhatsApp confirmation shortly. Talk soon! ☀️", status:"booked", appointment:"Thursday 6:00 PM" },
+      ],
+      email:(l,co)=>[
+        { message:`Hi ${first(l.name)},\n\nGreat to hear from you. I've re-run your numbers with today's electricity prices — your personal page shows the savings, payback and financing options side by side:\n${portalUrl(l,co)}\n\n${signoff(co,false)}`, status:"warm", appointment:null },
+        { message:`Hi ${first(l.name)},\n\nThat's a fair question. Most homeowners we work with cover a large part of their bill with solar, and with financing there's no large upfront payment.\n\nWould a free 15-minute call with one of our advisors help? I can offer Thursday at 18:00 or Friday at 10:00.\n\n${signoff(co,false)}`, status:"warm", appointment:null },
+        { message:`Hi ${first(l.name)},\n\nPerfect — you're booked for Thursday at 18:00. A calendar invitation is on its way.\n\n${signoff(co,false)}`, status:"booked", appointment:"Thursday 18:00" },
+      ],
+    },
   },
   Commercial: {
     tag:"B2B", label:"Business playbook", color:C.b2b, icon:"🏢",
     focus:"ROI & payback · depreciation · ESG · decision-maker",
     quick:["Send me the ROI numbers","Cash flow is tight this year","Our CFO needs to sign off","What's the payback period?","Fine — book a call with our CFO"],
     replies:["Yes, still on our list. What would the payback be?","Send over the updated numbers please","Timing is tricky, but let's hear it"],
-    opener:(l,co)=>`Hello ${l.dm?first(l.dm):"there"}, this is Lina from ${co.name} Business Energy. We prepared a ${l.kw} kW rooftop proposal for ${l.name} a few weeks ago — with current power prices the business case has improved. Is energy cost still on your agenda this year?`,
-    system:(l,co)=>`You are SolarWake, an AI reactivation assistant for ${co.name} Business Energy, following up over WhatsApp as "Lina".
-You are messaging ${l.dm||"the decision-maker"} at ${l.name}, a commercial lead that received a rooftop solar proposal and then went quiet.
-Playbook (B2B commercial): professional and concise, no emoji, no hype. Speak to annual savings, payback period, operating-cost reduction, depreciation and CO2 figures for ESG reporting. If they mention a CFO, owner, partner or board, aim to book a call that includes that decision-maker. Share their business-case page link once when they ask for numbers.
+    opener:{
+      whatsapp:(l,co)=>({ text:`Hello ${l.dm?first(l.dm):"there"}, this is Lina from ${co.name} Business Energy. We prepared a ${l.kw} kW rooftop proposal for ${l.name} a few weeks ago — with current power prices the business case has improved. Is energy cost still on your agenda this year?` }),
+      email:(l,co)=>({ subject:`Updated business case: ${l.kw} kW rooftop solar for ${l.name}`,
+        text:`Dear ${dmName(l)},\n\nA few weeks ago we prepared a ${l.kw} kW rooftop solar proposal for ${l.name}. Since then electricity prices have moved, and the business case has improved.\n\nIs reducing energy cost still on your agenda this year? If useful, I can send you the updated figures.\n\n${signoff(co,true)}` }),
+    },
+    system:(l,co,ch)=>`You are SolarWake, an AI reactivation assistant for ${co.name} Business Energy, following up as "Lina".
+You are writing to ${l.dm||"the decision-maker"} at ${l.name}, a commercial lead that received a rooftop solar proposal and then went quiet.
+Playbook (B2B commercial): professional and concise, no hype. Speak to annual savings, payback period, operating-cost reduction, depreciation and CO2 figures for ESG reporting. If they mention a CFO, owner, partner or board, aim to book a call that includes that decision-maker. Share their business-case page link once when they ask for numbers.
+${CHANNEL_STYLE[ch](true,co)}
 ${leadFacts(l,co)}
 Goal: book a 20-minute call with a commercial advisor (and their decision-maker). Offer two specific time slots.
 ${JSON_RULES}`,
-    script:(l,co)=>{ const m=solarModel(l,co,{ bill:l.bill }); return [
-      { message:`Thanks for getting back to me. At today's prices the system saves roughly ${eur(m.savings)} a year with a payback of about ${fmtYears(m.payback)}. Full business case incl. depreciation and CO₂ for your ESG report: ${portalUrl(l,co)}`, status:"warm", appointment:null },
-      { message:"Understood — that's usually a CFO-level decision. Financing can be structured so the monthly savings cover most of the instalment. Shall I set up a 20-minute call with you and your CFO — Tuesday 10:00 or Wednesday 14:00?", status:"warm", appointment:null },
-      { message:"Done — Tuesday at 10:00 is booked with our commercial advisor. I'll send a calendar invite and a one-page ROI summary for your CFO beforehand.", status:"booked", appointment:"Tuesday 10:00" },
-    ]; },
+    script:{
+      whatsapp:(l,co)=>{ const m=solarModel(l,co,{ bill:l.bill }); return [
+        { message:`Thanks for getting back to me. At today's prices the system saves roughly ${eur(m.savings)} a year with a payback of about ${fmtYears(m.payback)}. Full business case incl. depreciation and CO₂ for your ESG report: ${portalUrl(l,co)}`, status:"warm", appointment:null },
+        { message:"Understood — that's usually a CFO-level decision. Financing can be structured so the monthly savings cover most of the instalment. Shall I set up a 20-minute call with you and your CFO — Tuesday 10:00 or Wednesday 14:00?", status:"warm", appointment:null },
+        { message:"Done — Tuesday at 10:00 is booked with our commercial advisor. I'll send a calendar invite and a one-page ROI summary for your CFO beforehand.", status:"booked", appointment:"Tuesday 10:00" },
+      ]; },
+      email:(l,co)=>{ const m=solarModel(l,co,{ bill:l.bill }); return [
+        { message:`Dear ${dmName(l)},\n\nThank you for your reply. At current electricity prices, the ${l.kw} kW system would save approximately ${eur(m.savings)} per year, with a payback period of about ${fmtYears(m.payback)}.\n\nThe full business case, including financing, depreciation and the CO₂ figures for your ESG reporting, is here:\n${portalUrl(l,co)}\n\n${signoff(co,true)}`, status:"warm", appointment:null },
+        { message:`Dear ${dmName(l)},\n\nUnderstood — a decision like this usually involves your CFO. Financing can be structured so the monthly savings cover most of the instalment.\n\nWould a 20-minute call with you and your CFO work on Tuesday at 10:00 or Wednesday at 14:00?\n\n${signoff(co,true)}`, status:"warm", appointment:null },
+        { message:`Dear ${dmName(l)},\n\nConfirmed — Tuesday at 10:00 with our commercial advisor. I'll send a calendar invitation and a one-page ROI summary for your CFO ahead of the call.\n\n${signoff(co,true)}`, status:"booked", appointment:"Tuesday 10:00" },
+      ]; },
+    },
   },
 };
 
@@ -185,7 +225,7 @@ async function callClaude(system, messages, max_tokens=2000){
   return (data.content||[]).filter(i=>i.type==="text").map(i=>i.text).join("\n");
 }
 // The Messages API needs the first turn to be "user", so the agent's opener is preceded by a short note.
-const toApi = history => [{ role:"user", content:"(Lead record opened. You sent the first WhatsApp message below.)" },
+const toApi = history => [{ role:"user", content:"(Lead record opened. You sent the first message below.)" },
   ...history.map(m=>({ role:m.role==="agent"?"assistant":"user", content:m.text }))];
 
 // ================== ADVISOR HANDOFF BRIEF ==================
@@ -245,7 +285,7 @@ const SEED_ACTIVITY = [
 
 function App(){
   const [tab,setTab]=useState("console");
-  const [leads,setLeads]=useState(CONTACTS);
+  const [leads,setLeads]=useState(INITIAL_LEADS);
   const [companyId,setCompanyId]=useState("SW-001");
   const [segFilter,setSegFilter]=useState("All");
   const [leadId,setLeadId]=useState("C-1001");
@@ -309,12 +349,15 @@ function App(){
   }
   function openPortal(id){ const l=leads.find(x=>x.id===id); if(l){ setCompanyId(l.co); setLeadId(id); } setTab("portal"); }
 
+  function setChannel(id,channel){ setLeads(ls=>ls.map(l=>l.id===id?{ ...l, channel }:l)); }
+  const openerMsg=l=>{ const o=PLAYBOOKS[l.seg].opener[l.channel](l,coOf(l)); return { role:"agent", text:o.text, subject:o.subject, time:now() }; };
+  const sentLog=l=>`${CHANNELS[l.channel].icon} ${PLAYBOOKS[l.seg].tag} ${l.channel==="email"?"email":"WhatsApp opener"} sent to ${l.name}`;
+
   function start(){
     if(started||!lead) return;
-    const co=coOf(lead);
-    setConvo(lead.id,()=>[{ role:"agent", text:PLAYBOOKS[lead.seg].opener(lead,co), time:now() }]);
+    setConvo(lead.id,()=>[openerMsg(lead)]);
     if(lead.status==="Cold") setLeadStatus(lead.id,"Contacting");
-    log(`📤 ${PLAYBOOKS[lead.seg].tag} opener sent to ${lead.name}`,"out");
+    log(sentLog(lead),"out");
   }
 
   function send(text){
@@ -329,20 +372,21 @@ function App(){
     const co=coOf(l), play=PLAYBOOKS[l.seg];
     setTypingId(l.id);
     const turn=history.filter(m=>m.role==="customer").length;
-    const script=play.script(l,co);
+    const script=play.script[l.channel](l,co);
     let reply;
     try{
       if(demoMode){ await sleep(800); reply=script[Math.min(turn-1,script.length-1)]; }
-      else reply=parseAgent(await callClaude(play.system(l,co), toApi(history)));
+      else reply=parseAgent(await callClaude(play.system(l,co,l.channel), toApi(history)));
     }catch(e){
       // Auto-fallback to script if the live call fails — the demo keeps going.
       reply=script[Math.min(turn-1,script.length-1)];
     }
-    const full=[...history,{ role:"agent", text:reply.message, time:now() }];
+    const subject=history[0].subject?`Re: ${history[0].subject}`:undefined;
+    const full=[...history,{ role:"agent", text:reply.message, subject, time:now() }];
     setConvo(l.id,()=>full);
     setTypingId(t=>t===l.id?null:t);
     busy.current.delete(l.id);
-    if(reply.status==="booked"&&reply.appointment) markBooked(l, reply.appointment, "via the WhatsApp agent", full);
+    if(reply.status==="booked"&&reply.appointment) markBooked(l, reply.appointment, `via the ${l.channel==="email"?"email":"WhatsApp"} agent`, full);
     else if(reply.status==="warm") setLeadStatus(l.id,"Warm");
   }
 
@@ -377,17 +421,17 @@ function App(){
     log(`🚀 Campaign launched — ${targets.length} dormant lead${targets.length>1?"s":""} at ${company.name} (${segFilter==="All"?"B2C + B2B":PLAYBOOKS[segFilter].tag})`,"sys");
     let last=0;
     targets.forEach((l,i)=>{
-      const play=PLAYBOOKS[l.seg], co=coOf(l);
+      const play=PLAYBOOKS[l.seg];
       later(()=>{
-        setConvo(l.id,m=>m.length?m:[{ role:"agent", text:play.opener(l,co), time:now() }]);
+        setConvo(l.id,m=>m.length?m:[openerMsg(l)]);
         setLeadStatus(l.id,"Contacting");
-        log(`📤 ${play.tag} opener sent to ${l.name}`,"out");
+        log(sentLog(l),"out");
       }, 400+i*450);
       if(hash(l.id)<0.6){
         const reply=play.replies[Math.floor(hash(l.id+"r")*play.replies.length)];
         const at=2600+i*700; last=Math.max(last,at);
         later(()=>{
-          setConvo(l.id,m=>[...m,{ role:"customer", text:reply, time:now() }]);
+          setConvo(l.id,m=>[...m,{ role:"customer", text:reply, subject:m[0]&&m[0].subject?`Re: ${m[0].subject}`:undefined, time:now() }]);
           setLeadStatus(l.id,"Warm");
           log(`💬 ${l.name}: "${reply}"`,"in");
         }, at);
@@ -402,7 +446,7 @@ function App(){
 
   function reset(){
     timers.current.forEach(clearTimeout); timers.current=[]; busy.current.clear();
-    setLeads(CONTACTS); setConvos({}); setBriefs({}); setActivity(SEED_ACTIVITY);
+    setLeads(INITIAL_LEADS); setConvos({}); setBriefs({}); setActivity(SEED_ACTIVITY);
     setTypingId(null); setCampaign(false); setInput(""); setToast(null);
     setSegFilter("All"); setCompanyId("SW-001"); setLeadId("C-1001");
   }
@@ -452,14 +496,14 @@ function App(){
 
         {tab==="console" ? (
           <Console {...{company,companyId,pickCompany,segFilter,setSegFilter,kpi,lead,leadId,pickLead,visibleLeads,messages,started,typing,pb,sMeta,
-            start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal}} />
+            start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal,setChannel}} />
         ) : (
           <Portal key={lead?lead.id:"none"} lead={lead} company={company} companyLeads={companyLeads} pickLead={pickLead}
             pickCompany={pickCompany} onBook={bookFromPortal} backToConsole={()=>setTab("console")} />
         )}
 
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:16,flexWrap:"wrap",gap:10}}>
-          <div style={{fontSize:12,color:C.sub}}>⚡ The agent runs live on Anthropic's Claude API. Same lead volume → more booked appointments.</div>
+          <div style={{fontSize:12,color:C.sub}}>⚡ The agent runs live on Anthropic's Claude API, over WhatsApp or email. Same lead volume → more booked appointments.</div>
           <button onClick={reset} style={{display:"inline-flex",alignItems:"center",gap:7,background:C.panel,color:C.sub,border:`1px solid ${C.line}`,padding:"8px 14px",borderRadius:999,fontSize:13,cursor:"pointer",fontWeight:600}}>↺ Reset demo</button>
         </div>
       </div>
@@ -476,7 +520,7 @@ function App(){
 // ================== B2B: INSTALLER CONSOLE ==================
 function Console(p){
   const { company,companyId,pickCompany,segFilter,setSegFilter,kpi,lead,leadId,pickLead,visibleLeads,messages,started,typing,pb,sMeta,
-    start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal } = p;
+    start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal,setChannel } = p;
   const brief=lead&&briefs[lead.id];
   const maxFunnel=Math.max(1,...kpi.funnel.map(f=>f.n));
   const coldCount=visibleLeads.filter(l=>l.status==="Cold").length;
@@ -580,6 +624,15 @@ function Console(p){
                   <span style={{fontSize:12,fontWeight:700,color:"#BBF7D0",background:"#0F3D22",padding:"5px 11px",borderRadius:999}}>📅 {lead.appointment}</span>
                 )}
                 <span style={{fontSize:11.5,fontWeight:700,color:pb.color}}>{pb.icon} {pb.label}</span>
+                <div title={started?"Channel is fixed once the conversation has started":"Choose how the agent reaches this lead"}
+                  style={{display:"inline-flex",background:C.night,border:`1px solid ${C.line}`,borderRadius:999,padding:2,opacity:started?.6:1}}>
+                  {Object.entries(CHANNELS).map(([k,ch])=>{
+                    const on=lead.channel===k;
+                    return <button key={k} onClick={()=>!started&&setChannel(lead.id,k)} disabled={started}
+                      style={{fontSize:11.5,fontWeight:700,border:"none",borderRadius:999,padding:"4px 10px",cursor:started?"default":"pointer",
+                        background:on?C.gold:"transparent",color:on?C.night:C.sub}}>{ch.icon} {ch.label}</button>;
+                  })}
+                </div>
                 <button onClick={()=>openPortal(lead.id)} style={{marginLeft:"auto",fontSize:11.5,fontWeight:700,color:C.text,background:"transparent",border:`1px solid ${C.line}`,borderRadius:999,padding:"5px 10px",cursor:"pointer"}}>
                   View customer page ↗
                 </button>
@@ -622,6 +675,7 @@ function Console(p){
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
                       <span style={{fontSize:13,fontWeight:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{l.name}</span>
                       <SegBadge seg={l.seg} small/>
+                      <span title={`Agent reaches this lead by ${CHANNELS[l.channel].label}`} style={{fontSize:11}}>{CHANNELS[l.channel].icon}</span>
                     </div>
                     <div style={{fontSize:11,color:C.sub}}>quoted {eur(l.quote)} · {l.days}d ago · {l.lost.toLowerCase()}</div>
                   </div>
@@ -635,7 +689,10 @@ function Console(p){
           </div>
         </div>
 
-        {/* RIGHT — WhatsApp */}
+        {/* RIGHT — the lead's channel: email inbox or WhatsApp */}
+        {lead&&lead.channel==="email" ? (
+          <EmailPane key={lead.id} {...{lead,messages,started,typing,pb,start,send,openPortal}}/>
+        ) : (
         <div style={{background:"#000",borderRadius:26,padding:8,boxShadow:"0 20px 50px rgba(0,0,0,.5)"}}>
           <div style={{background:C.waWall,borderRadius:20,overflow:"hidden",display:"flex",flexDirection:"column",height:640}}>
             <div style={{background:C.waHeader,color:"#fff",padding:"12px 14px",display:"flex",alignItems:"center",gap:11}}>
@@ -705,6 +762,7 @@ function Console(p){
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* Activity + ROI */}
@@ -724,6 +782,89 @@ function Console(p){
         <ROICalc/>
       </div>
     </>
+  );
+}
+
+// Email channel: an inbox-style thread. You reply as the business; the agent answers by email.
+function EmailPane({ lead, messages, started, typing, pb, start, send, openPortal }){
+  const co=coOf(lead), biz=lead.seg==="Commercial";
+  const [draft,setDraft]=useState("");
+  const ref=useRef(null);
+  useEffect(()=>{ if(ref.current) ref.current.scrollTop=ref.current.scrollHeight; },[messages.length,typing]);
+  const contact=biz&&lead.dm?dmName(lead):lead.name;
+  const subject=messages[0]&&messages[0].subject;
+  const canReply=started&&!typing&&lead.status!=="Booked";
+  const submit=t=>{ if(!canReply||!(t||"").trim()) return; send(t); setDraft(""); };
+  const ink="#1F2937", muted="#6B7280", line="#E5E7EB";
+
+  return (
+    <div style={{background:"#fff",borderRadius:16,overflow:"hidden",display:"flex",flexDirection:"column",height:656,boxShadow:"0 20px 50px rgba(0,0,0,.5)",color:ink}}>
+      <div style={{background:"#1E3A8A",color:"#fff",padding:"11px 14px",display:"flex",alignItems:"center",gap:10}}>
+        <span style={{fontSize:18}}>✉️</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:700,fontSize:14}}>Inbox · {agentEmail(co)}</div>
+          <div style={{fontSize:11.5,opacity:.85,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{typing?"Lina is drafting a reply…":`Thread with ${contact} <${lead.email}>`}</div>
+        </div>
+      </div>
+      {subject&&<div style={{padding:"10px 14px",borderBottom:`1px solid ${line}`,fontWeight:800,fontSize:14.5}}>{subject}</div>}
+
+      <div ref={ref} style={{flex:1,overflowY:"auto",padding:12,display:"flex",flexDirection:"column",gap:10,background:"#F3F4F6"}}>
+        {!started&&(
+          <div style={{margin:"auto",textAlign:"center",color:muted,maxWidth:270}}>
+            {lead.status==="Booked" ? (
+              <div style={{fontSize:13,lineHeight:1.5}}>✅ {lead.name} booked <b>{lead.appointment}</b> {lead.via||""}. No email needed.</div>
+            ) : (
+              <>
+                <div style={{fontSize:13,marginBottom:14,lineHeight:1.5}}>
+                  {biz?"Many businesses ignore vendor WhatsApps, so ":""}SolarWake will reach <b>{contact}</b> by email using the <b>{pb.label.toLowerCase()}</b>.
+                </div>
+                <button onClick={start} style={{background:"#1E3A8A",color:"#fff",border:"none",padding:"11px 20px",borderRadius:999,fontWeight:700,fontSize:14,cursor:"pointer"}}>✉️ Send reactivation email</button>
+              </>
+            )}
+          </div>
+        )}
+        {messages.map((m,i)=>{
+          const mine=m.role==="customer";
+          return (
+            <div key={i} className="sw-in" style={{background:"#fff",border:`1px solid ${line}`,borderLeft:`3px solid ${mine?"#9CA3AF":"#1E3A8A"}`,borderRadius:10,padding:"10px 12px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:12,marginBottom:2}}>
+                <b style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{mine?contact:`Lina · ${co.name}`}</b>
+                <span style={{color:muted,flexShrink:0}}>{m.time}</span>
+              </div>
+              <div style={{fontSize:11,color:muted,marginBottom:8,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                {mine?`${lead.email} → ${agentEmail(co)}`:`${agentEmail(co)} → ${lead.email}`}
+              </div>
+              <div style={{fontSize:13.5,lineHeight:1.5,whiteSpace:"pre-wrap",wordBreak:"break-word"}}><ChatText text={m.text} onPortal={openPortal}/></div>
+            </div>
+          );
+        })}
+        {typing&&(
+          <div style={{background:"#fff",border:`1px solid ${line}`,borderRadius:10,padding:"10px 12px",fontSize:12.5,color:muted}}>
+            <span className="sw-dots"><i/><i/><i/></span> Lina is drafting a reply…
+          </div>
+        )}
+      </div>
+
+      {started&&lead.status!=="Booked"&&(
+        <div style={{borderTop:`1px solid ${line}`,padding:10,background:"#fff"}}>
+          <div style={{fontSize:11,color:muted,marginBottom:6}}>Reply as {contact} · suggested:</div>
+          <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:8}}>
+            {pb.quick.map(q=>(
+              <button key={q} onClick={()=>submit(q)} disabled={!canReply}
+                style={{whiteSpace:"nowrap",fontSize:12,background:"#EEF2FF",color:"#1E3A8A",border:"1px solid #C7D2FE",padding:"5px 10px",borderRadius:999,cursor:canReply?"pointer":"default",opacity:canReply?1:.5,fontWeight:600}}>{q}</button>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+            <textarea value={draft} onChange={e=>setDraft(e.target.value)} disabled={!canReply} rows={2}
+              onKeyDown={e=>{ if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)) submit(draft); }}
+              placeholder={`Write a reply as ${contact}… (Ctrl+Enter to send)`}
+              style={{flex:1,resize:"none",border:`1px solid ${line}`,borderRadius:10,padding:"8px 10px",fontSize:13.5,fontFamily:"inherit",outline:"none",color:ink}}/>
+            <button onClick={()=>submit(draft)} disabled={!canReply||!draft.trim()}
+              style={{background:"#1E3A8A",color:"#fff",border:"none",borderRadius:10,padding:"10px 14px",fontWeight:700,fontSize:13,cursor:"pointer",opacity:canReply&&draft.trim()?1:.5}}>Send</button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -803,7 +944,7 @@ function Portal({ lead, company, companyLeads, pickLead, pickCompany, onBook, ba
           style={{background:C.panel2,color:C.text,border:`1px solid ${C.line}`,borderRadius:9,padding:"7px 10px",fontSize:13,fontWeight:600,outline:"none"}}>
           {companyLeads.map(l=><option key={l.id} value={l.id}>{PLAYBOOKS[l.seg].icon} {l.name}</option>)}
         </select>
-        <span style={{fontSize:12,color:C.sub}}>White-labelled for each installer · sent by the agent on WhatsApp</span>
+        <span style={{fontSize:12,color:C.sub}}>White-labelled for each installer · linked from the agent's WhatsApp or email</span>
       </div>
 
       {/* Browser frame */}
@@ -820,7 +961,7 @@ function Portal({ lead, company, companyLeads, pickLead, pickCompany, onBook, ba
               <div style={{width:34,height:34,borderRadius:9,background:brand,display:"grid",placeItems:"center",color:"#fff",fontSize:17}}>☀</div>
               <div><div style={{fontWeight:800}}>{co.name}{biz?" · Business Energy":""}</div><div style={{fontSize:11,color:C.pSub}}>{co.city} · certified installer</div></div>
             </div>
-            <div style={{fontSize:12,color:C.pSub}}>Your advisor: <b style={{color:C.pInk}}>Lina</b> · 💬 WhatsApp</div>
+            <div style={{fontSize:12,color:C.pSub}}>Your advisor: <b style={{color:C.pInk}}>Lina</b> · {CHANNELS[lead.channel].icon} {lead.channel==="email"?agentEmail(co):"WhatsApp"}</div>
           </div>
 
           {/* Hero */}
@@ -887,7 +1028,7 @@ function Portal({ lead, company, companyLeads, pickLead, pickCompany, onBook, ba
               <div style={{textAlign:"center",padding:"10px 0"}}>
                 <div style={{fontSize:30}}>🎉</div>
                 <div style={{fontSize:18,fontWeight:800}}>You're booked: {lead.appointment}</div>
-                <div style={{fontSize:13,color:C.pSub,marginTop:4}}>A {biz?"commercial ":""}advisor from {co.name} will call you. Confirmation sent on WhatsApp.</div>
+                <div style={{fontSize:13,color:C.pSub,marginTop:4}}>A {biz?"commercial ":""}advisor from {co.name} will call you. Confirmation sent by {CHANNELS[lead.channel].label.toLowerCase()}.</div>
                 <button onClick={backToConsole} style={{marginTop:12,fontSize:12,fontWeight:700,background:C.pInk,color:"#fff",border:"none",borderRadius:999,padding:"8px 14px",cursor:"pointer"}}>See it land in the installer console →</button>
               </div>
             ) : (
