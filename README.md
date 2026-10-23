@@ -17,8 +17,33 @@ Every lead is handled by its own **playbook**:
 
 Each lead also has a **channel**. Many companies ignore vendor WhatsApps, so every lead defaults to
 ✉️ **email** (inbox-style thread with subject lines and formal sign-offs). You can switch any lead to
-💬 **WhatsApp** in the console before the conversation starts. Emails are shown in the app and are not
-actually sent. The console opens on a business lead so the email inbox is the first thing judges see.
+💬 **WhatsApp** in the console before the conversation starts. The console opens on a business lead so the
+email inbox is the first thing judges see.
+
+### Live email (real emails, dummy contacts)
+
+With a [Resend](https://resend.com) API key, the agent's emails are **really sent**, not just shown in the app.
+
+- **No real people are emailed.** Every lead has a fictional `@example.com` address (a reserved domain that
+  can't reach anyone), and `api/email.js` only accepts those. Every email is **redirected to one test inbox**
+  you choose, with the fictional recipient in the subject: `[Test → thomas.hofmann@example.com] ...`
+- Links in sent emails open the real customer page (`https://<your-site>/?p=C-1006`), so you can tap one
+  on your phone during the demo.
+- Each email card in the inbox shows whether it was delivered, failed (with the reason), or wasn't sent
+  (Demo Mode / live email off). The header pill shows `✉️ Live email → o•••@gmail.com` when it's on.
+
+Setup (free Resend account, no domain needed):
+1. Sign up at https://resend.com with the inbox you want the test emails in (e.g. your Gmail).
+2. **API Keys -> Create API Key** (sending access is enough).
+3. In Vercel -> Settings -> Environment Variables, add:
+   - `RESEND_API_KEY` = `re_...`
+   - `EMAIL_TEST_INBOX` = the same email you signed up to Resend with
+4. Redeploy. Without a verified domain, Resend only delivers to the address you signed up with, and emails come
+   from `onboarding@resend.dev`. If `EMAIL_TEST_INBOX` is not set, emails go to Resend's test address
+   `delivered@resend.dev` and only show up in the Resend dashboard (Emails tab).
+5. Optional: verify your own domain in Resend and set `EMAIL_FROM_ADDRESS` (e.g. `lina@yourdomain.com`).
+
+Replies from the inbox don't flow back into the app yet; you still reply as the company inside the app.
 
 No external CRM: leads live in the app. A small serverless function keeps your API key off the browser.
 
@@ -32,9 +57,11 @@ package.json     lets Vercel recognise the project
 
 ## Test locally with the live AI (before deploying)
 
-1. Create a file named `.env.local` in this folder containing one line (it is git-ignored):
+1. Create a file named `.env.local` in this folder (it is git-ignored). The email lines are optional:
    ```
    ANTHROPIC_API_KEY=sk-ant-...
+   RESEND_API_KEY=re_...
+   EMAIL_TEST_INBOX=you@gmail.com
    ```
 2. Run `npm run local` (Node 22.9+; no `npm install` needed).
 3. Open http://localhost:3000 and leave the toggle on **Live AI**.

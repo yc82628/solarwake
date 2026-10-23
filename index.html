@@ -50,23 +50,24 @@ const COMPANIES = [
   { id:"SW-005", name:"AlpenVolt AG",     city:"Zurich",  country:"CH", api:"Live", brand:"#DC2626", slug:"alpenvolt" },
 ];
 // bill = current electricity bill per month (€). lost = why the deal stalled. dm = decision-maker (B2B).
+// All people and email addresses are fictional; example.com is reserved and can never reach a real inbox.
 const CONTACTS = [
-  {id:"C-1001",co:"SW-001",name:"Michael Weber",seg:"Residential",city:"Munich",kw:8,quote:14200,days:47,status:"Cold",phone:"+491511234567",email:"michael.weber@gmx.de",bill:125,src:"Google Ads",lost:"Price felt high"},
-  {id:"C-1002",co:"SW-001",name:"Sofia Klein",seg:"Residential",city:"Munich",kw:6.5,quote:9800,days:62,status:"Contacting",phone:"+491602345678",email:"sofia.klein@web.de",bill:95,src:"Website form",lost:"Timing"},
-  {id:"C-1003",co:"SW-001",name:"Jonas Braun",seg:"Residential",city:"Augsburg",kw:11,quote:21400,days:38,status:"Warm",phone:"+491703456789",email:"jonas.braun@gmail.com",bill:170,src:"Referral",lost:"Competing quote"},
-  {id:"C-1004",co:"SW-001",name:"Amelie Roth",seg:"Residential",city:"Munich",kw:5.5,quote:12100,days:90,status:"Cold",phone:"+491514567890",email:"amelie.roth@t-online.de",bill:85,src:"Facebook Ads",lost:"Unsure about savings"},
-  {id:"C-1005",co:"SW-001",name:"David Fischer",seg:"Residential",city:"Rosenheim",kw:9.5,quote:17600,days:51,status:"Cold",phone:"+491605678901",email:"d.fischer@gmx.de",bill:140,src:"Google Ads",lost:"Price felt high"},
-  {id:"C-1006",co:"SW-001",name:"Bäckerei Hofmann GmbH",seg:"Commercial",city:"Munich",kw:42,quote:48500,days:73,status:"Cold",phone:"+498912345678",email:"t.hofmann@baeckerei-hofmann.de",bill:1450,src:"Trade fair",lost:"Cash flow",dm:"Thomas Hofmann (Owner)"},
-  {id:"C-1007",co:"SW-001",name:"Weber & Sohn Logistik",seg:"Commercial",city:"Dachau",kw:95,quote:112000,days:44,status:"Warm",phone:"+498131234567",email:"k.weber@weber-sohn-logistik.de",bill:3900,src:"LinkedIn",lost:"Needs CFO sign-off",dm:"Katrin Weber (CFO)"},
-  {id:"C-1008",co:"SW-002",name:"Lena Schuster",seg:"Residential",city:"Berlin",kw:7,quote:13100,days:55,status:"Cold",phone:"+491512223344",email:"lena.schuster@posteo.de",bill:110,src:"Google Ads",lost:"Timing"},
-  {id:"C-1009",co:"SW-002",name:"Paul Neumann",seg:"Residential",city:"Potsdam",kw:10,quote:19800,days:29,status:"Contacting",phone:"+491603334455",email:"paul.neumann@gmail.com",bill:155,src:"Website form",lost:"Competing quote"},
-  {id:"C-1010",co:"SW-002",name:"Café Sonnendeck",seg:"Commercial",city:"Berlin",kw:28,quote:36700,days:81,status:"Cold",phone:"+493044556677",email:"mara@cafe-sonnendeck.de",bill:980,src:"Walk-in",lost:"Unsure about payback",dm:"Mara Lenz (Owner)"},
-  {id:"C-1012",co:"SW-003",name:"Erik Hansen",seg:"Residential",city:"Hamburg",kw:8.5,quote:15600,days:67,status:"Cold",phone:"+491515556677",email:"erik.hansen@web.de",bill:120,src:"Google Ads",lost:"Price felt high"},
-  {id:"C-1013",co:"SW-003",name:"Nina Fischer",seg:"Residential",city:"Lübeck",kw:7.5,quote:13900,days:33,status:"Warm",phone:"+491606667788",email:"nina.fischer@gmx.de",bill:105,src:"Referral",lost:"Timing"},
-  {id:"C-1014",co:"SW-003",name:"Nordwind Hotel GmbH",seg:"Commercial",city:"Hamburg",kw:60,quote:74000,days:58,status:"Cold",phone:"+494030001122",email:"j.petersen@nordwind-hotel.de",bill:2600,src:"LinkedIn",lost:"Needs board approval",dm:"Jan Petersen (GM)"},
-  {id:"C-1019",co:"SW-005",name:"Andreas Meier",seg:"Residential",city:"Zurich",kw:9,quote:22500,days:41,status:"Warm",phone:"+41791234567",email:"a.meier@bluewin.ch",bill:150,src:"Website form",lost:"Competing quote"},
-  {id:"C-1020",co:"SW-005",name:"Claudia Brunner",seg:"Residential",city:"Winterthur",kw:6.5,quote:17800,days:60,status:"Cold",phone:"+41782345678",email:"claudia.brunner@gmail.com",bill:100,src:"Google Ads",lost:"Unsure about savings"},
-  {id:"C-1021",co:"SW-005",name:"Bergblick Praxis AG",seg:"Commercial",city:"Zug",kw:22,quote:39900,days:53,status:"Contacting",phone:"+41412223344",email:"s.graf@bergblick-praxis.ch",bill:820,src:"Referral",lost:"Cash flow",dm:"Dr. Sabine Graf (Partner)"},
+  {id:"C-1001",co:"SW-001",name:"Michael Weber",seg:"Residential",city:"Munich",kw:8,quote:14200,days:47,status:"Cold",phone:"+491511234567",email:"michael.weber@example.com",bill:125,src:"Google Ads",lost:"Price felt high"},
+  {id:"C-1002",co:"SW-001",name:"Sofia Klein",seg:"Residential",city:"Munich",kw:6.5,quote:9800,days:62,status:"Contacting",phone:"+491602345678",email:"sofia.klein@example.com",bill:95,src:"Website form",lost:"Timing"},
+  {id:"C-1003",co:"SW-001",name:"Jonas Braun",seg:"Residential",city:"Augsburg",kw:11,quote:21400,days:38,status:"Warm",phone:"+491703456789",email:"jonas.braun@example.com",bill:170,src:"Referral",lost:"Competing quote"},
+  {id:"C-1004",co:"SW-001",name:"Amelie Roth",seg:"Residential",city:"Munich",kw:5.5,quote:12100,days:90,status:"Cold",phone:"+491514567890",email:"amelie.roth@example.com",bill:85,src:"Facebook Ads",lost:"Unsure about savings"},
+  {id:"C-1005",co:"SW-001",name:"David Fischer",seg:"Residential",city:"Rosenheim",kw:9.5,quote:17600,days:51,status:"Cold",phone:"+491605678901",email:"david.fischer@example.com",bill:140,src:"Google Ads",lost:"Price felt high"},
+  {id:"C-1006",co:"SW-001",name:"Bäckerei Hofmann GmbH",seg:"Commercial",city:"Munich",kw:42,quote:48500,days:73,status:"Cold",phone:"+498912345678",email:"thomas.hofmann@example.com",bill:1450,src:"Trade fair",lost:"Cash flow",dm:"Thomas Hofmann (Owner)"},
+  {id:"C-1007",co:"SW-001",name:"Weber & Sohn Logistik",seg:"Commercial",city:"Dachau",kw:95,quote:112000,days:44,status:"Warm",phone:"+498131234567",email:"katrin.weber@example.com",bill:3900,src:"LinkedIn",lost:"Needs CFO sign-off",dm:"Katrin Weber (CFO)"},
+  {id:"C-1008",co:"SW-002",name:"Lena Schuster",seg:"Residential",city:"Berlin",kw:7,quote:13100,days:55,status:"Cold",phone:"+491512223344",email:"lena.schuster@example.com",bill:110,src:"Google Ads",lost:"Timing"},
+  {id:"C-1009",co:"SW-002",name:"Paul Neumann",seg:"Residential",city:"Potsdam",kw:10,quote:19800,days:29,status:"Contacting",phone:"+491603334455",email:"paul.neumann@example.com",bill:155,src:"Website form",lost:"Competing quote"},
+  {id:"C-1010",co:"SW-002",name:"Café Sonnendeck",seg:"Commercial",city:"Berlin",kw:28,quote:36700,days:81,status:"Cold",phone:"+493044556677",email:"mara.lenz@example.com",bill:980,src:"Walk-in",lost:"Unsure about payback",dm:"Mara Lenz (Owner)"},
+  {id:"C-1012",co:"SW-003",name:"Erik Hansen",seg:"Residential",city:"Hamburg",kw:8.5,quote:15600,days:67,status:"Cold",phone:"+491515556677",email:"erik.hansen@example.com",bill:120,src:"Google Ads",lost:"Price felt high"},
+  {id:"C-1013",co:"SW-003",name:"Nina Fischer",seg:"Residential",city:"Lübeck",kw:7.5,quote:13900,days:33,status:"Warm",phone:"+491606667788",email:"nina.fischer@example.com",bill:105,src:"Referral",lost:"Timing"},
+  {id:"C-1014",co:"SW-003",name:"Nordwind Hotel GmbH",seg:"Commercial",city:"Hamburg",kw:60,quote:74000,days:58,status:"Cold",phone:"+494030001122",email:"jan.petersen@example.com",bill:2600,src:"LinkedIn",lost:"Needs board approval",dm:"Jan Petersen (GM)"},
+  {id:"C-1019",co:"SW-005",name:"Andreas Meier",seg:"Residential",city:"Zurich",kw:9,quote:22500,days:41,status:"Warm",phone:"+41791234567",email:"andreas.meier@example.com",bill:150,src:"Website form",lost:"Competing quote"},
+  {id:"C-1020",co:"SW-005",name:"Claudia Brunner",seg:"Residential",city:"Winterthur",kw:6.5,quote:17800,days:60,status:"Cold",phone:"+41782345678",email:"claudia.brunner@example.com",bill:100,src:"Google Ads",lost:"Unsure about savings"},
+  {id:"C-1021",co:"SW-005",name:"Bergblick Praxis AG",seg:"Commercial",city:"Zug",kw:22,quote:39900,days:53,status:"Contacting",phone:"+41412223344",email:"sabine.graf@example.com",bill:820,src:"Referral",lost:"Cash flow",dm:"Dr. Sabine Graf (Partner)"},
 ];
 
 // Email is the default channel (many businesses ignore vendor WhatsApps); WhatsApp can be chosen per lead.
@@ -284,12 +285,20 @@ const SEED_ACTIVITY = [
   { t:now(), text:`🔌 CRM sync complete — ${CONTACTS.length} leads across ${COMPANIES.length} installers`, kind:"sys" },
 ];
 
+// A link in a real email (/?p=C-1006) opens that lead's customer page directly.
+const DEEP_LEAD = (()=>{ try{ const id=new URLSearchParams(location.search).get("p"); return CONTACTS.some(c=>c.id===id)?id:null; }catch{ return null; } })();
+const START_LEAD = CONTACTS.find(c=>c.id===(DEEP_LEAD||FIRST_LEAD));
+let msgSeq=0;
+const msgId = () => ++msgSeq;
+// In real emails, the in-app page link becomes a link to the deployed customer page.
+const realLinks = text => text.replace(/\S*solarwake\.app\/p\/([A-Za-z0-9-]+)/g, (_,id)=>`${location.origin}/?p=${id}`);
+
 function App(){
-  const [tab,setTab]=useState("console");
+  const [tab,setTab]=useState(DEEP_LEAD?"portal":"console");
   const [leads,setLeads]=useState(INITIAL_LEADS);
-  const [companyId,setCompanyId]=useState("SW-001");
+  const [companyId,setCompanyId]=useState(START_LEAD.co);
   const [segFilter,setSegFilter]=useState("All");
-  const [leadId,setLeadId]=useState(FIRST_LEAD);
+  const [leadId,setLeadId]=useState(START_LEAD.id);
   const [convos,setConvos]=useState({});   // leadId -> [{role,text,time}]
   const [briefs,setBriefs]=useState({});   // leadId -> brief | "loading"
   const [activity,setActivity]=useState(SEED_ACTIVITY);
@@ -298,6 +307,8 @@ function App(){
   const [toast,setToast]=useState(null);
   const [demoMode,setDemoMode]=useState(false);
   const [campaign,setCampaign]=useState(false);
+  const [emailCfg,setEmailCfg]=useState({ enabled:false, inbox:null });
+  const mailQueue=useRef(Promise.resolve());
   const busy=useRef(new Set());
   const timers=useRef([]);
   const scrollRef=useRef(null);
@@ -328,6 +339,7 @@ function App(){
 
   useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[messages.length,typing]);
   useEffect(()=>()=>timers.current.forEach(clearTimeout),[]);
+  useEffect(()=>{ fetch("/api/email").then(r=>r.json()).then(d=>setEmailCfg({ enabled:!!d.enabled, inbox:d.inbox||null })).catch(()=>{}); },[]);
 
   // When the open lead's last message is from the customer, the agent answers it.
   useEffect(()=>{
@@ -353,12 +365,33 @@ function App(){
   function openPortal(id){ const l=leads.find(x=>x.id===id); if(l){ setCompanyId(l.co); setLeadId(id); } setTab("portal"); }
 
   function setChannel(id,channel){ setLeads(ls=>ls.map(l=>l.id===id?{ ...l, channel }:l)); }
-  const openerMsg=l=>{ const o=PLAYBOOKS[l.seg].opener[l.channel](l,coOf(l)); return { role:"agent", text:o.text, subject:o.subject, time:now() }; };
+  const openerMsg=l=>{ const o=PLAYBOOKS[l.seg].opener[l.channel](l,coOf(l)); return { id:msgId(), role:"agent", text:o.text, subject:o.subject, time:now() }; };
   const sentLog=l=>`${CHANNELS[l.channel].icon} ${PLAYBOOKS[l.seg].tag} ${l.channel==="email"?"email":"WhatsApp opener"} sent to ${l.name}`;
+
+  // Live email: the agent's emails go out through /api/email (Resend). Leads only have dummy addresses and the
+  // server redirects every email to the test inbox. Sends are spaced out to stay under Resend's rate limit.
+  function deliver(l, msg){
+    if(l.channel!=="email") return;
+    const mark=d=>setConvo(l.id,ms=>ms.map(m=>m.id===msg.id?{ ...m, delivery:d }:m));
+    if(demoMode||!emailCfg.enabled){ mark({ state:"off", note:demoMode?"Demo mode: not sent":"Live email off: shown in the app only" }); return; }
+    mark({ state:"sending" });
+    const job=mailQueue.current.then(async()=>{
+      const res=await fetch("/api/email",{ method:"POST", headers:{"content-type":"application/json"},
+        body:JSON.stringify({ to:l.email, subject:msg.subject, text:realLinks(msg.text), fromName:`Lina · ${coOf(l).name}` }) });
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(data.error||`HTTP ${res.status}`);
+      return data;
+    });
+    mailQueue.current=job.catch(()=>{}).then(()=>sleep(600));
+    job.then(()=>{ mark({ state:"sent" }); log(`📨 Real email delivered to the test inbox (${l.name})`,"out"); })
+       .catch(e=>{ mark({ state:"error", note:e.message }); log(`⚠ Email for ${l.name} not sent: ${e.message}`,"sys"); });
+  }
 
   function start(){
     if(started||!lead) return;
-    setConvo(lead.id,()=>[openerMsg(lead)]);
+    const msg=openerMsg(lead);
+    setConvo(lead.id,()=>[msg]);
+    deliver(lead, msg);
     if(lead.status==="Cold") setLeadStatus(lead.id,"Contacting");
     log(sentLog(lead),"out");
   }
@@ -366,7 +399,7 @@ function App(){
   function send(text){
     const clean=(text||"").trim(); if(!clean||typing||!started||!lead) return;
     setInput("");
-    setConvo(lead.id,m=>[...m,{ role:"customer", text:clean, time:now() }]);
+    setConvo(lead.id,m=>[...m,{ id:msgId(), role:"customer", text:clean, time:now() }]);
   }
 
   async function agentReply(l, history){
@@ -385,8 +418,10 @@ function App(){
       reply=script[Math.min(turn-1,script.length-1)];
     }
     const subject=history[0].subject?`Re: ${history[0].subject}`:undefined;
-    const full=[...history,{ role:"agent", text:reply.message, subject, time:now() }];
+    const msg={ id:msgId(), role:"agent", text:reply.message, subject, time:now() };
+    const full=[...history,msg];
     setConvo(l.id,()=>full);
+    deliver(l, msg);
     setTypingId(t=>t===l.id?null:t);
     busy.current.delete(l.id);
     if(reply.status==="booked"&&reply.appointment) markBooked(l, reply.appointment, `via the ${l.channel==="email"?"email":"WhatsApp"} agent`, full);
@@ -426,7 +461,9 @@ function App(){
     targets.forEach((l,i)=>{
       const play=PLAYBOOKS[l.seg];
       later(()=>{
-        setConvo(l.id,m=>m.length?m:[openerMsg(l)]);
+        const msg=openerMsg(l);
+        setConvo(l.id,m=>m.length?m:[msg]);
+        deliver(l, msg);
         setLeadStatus(l.id,"Contacting");
         log(sentLog(l),"out");
       }, 400+i*450);
@@ -434,7 +471,7 @@ function App(){
         const reply=play.replies[Math.floor(hash(l.id+"r")*play.replies.length)];
         const at=2600+i*700; last=Math.max(last,at);
         later(()=>{
-          setConvo(l.id,m=>[...m,{ role:"customer", text:reply, subject:m[0]&&m[0].subject?`Re: ${m[0].subject}`:undefined, time:now() }]);
+          setConvo(l.id,m=>[...m,{ id:msgId(), role:"customer", text:reply, subject:m[0]&&m[0].subject?`Re: ${m[0].subject}`:undefined, time:now() }]);
           setLeadStatus(l.id,"Warm");
           log(`💬 ${l.name}: "${reply}"`,"in");
         }, at);
@@ -479,6 +516,10 @@ function App(){
             </button>
             <div style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:C.sub,background:C.panel,border:`1px solid ${C.line}`,padding:"7px 12px",borderRadius:999}}>
               <span style={{width:7,height:7,borderRadius:999,background:C.gold,boxShadow:`0 0 7px ${C.gold}`}}/> Powered by Claude · Anthropic API
+            </div>
+            <div title={emailCfg.enabled?"Agent emails are really sent, redirected to this test inbox (leads are fictional)":"Set RESEND_API_KEY to send real emails"}
+              style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:emailCfg.enabled?"#BBF7D0":C.sub,background:C.panel,border:`1px solid ${emailCfg.enabled?C.green:C.line}`,padding:"7px 12px",borderRadius:999}}>
+              ✉️ {emailCfg.enabled?`Live email → ${emailCfg.inbox}`:"Email: in-app only"}
             </div>
           </div>
         </div>
@@ -806,7 +847,7 @@ function EmailPane({ lead, messages, started, typing, pb, start, send, openPorta
         <span style={{fontSize:18}}>✉️</span>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontWeight:700,fontSize:14}}>Inbox · {agentEmail(co)}</div>
-          <div style={{fontSize:11.5,opacity:.85,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{typing?"Lina is drafting a reply…":`Thread with ${contact} <${lead.email}>`}</div>
+          <div style={{fontSize:11.5,opacity:.85,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{typing?"Lina is drafting a reply…":`Thread with ${contact} <${lead.email}> · fictional test contact`}</div>
         </div>
       </div>
       {subject&&<div style={{padding:"10px 14px",borderBottom:`1px solid ${line}`,fontWeight:800,fontSize:14.5}}>{subject}</div>}
@@ -837,6 +878,11 @@ function EmailPane({ lead, messages, started, typing, pb, start, send, openPorta
               <div style={{fontSize:11,color:muted,marginBottom:8,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                 {mine?`${lead.email} → ${agentEmail(co)}`:`${agentEmail(co)} → ${lead.email}`}
               </div>
+              {!mine&&m.delivery&&(
+                <div style={{fontSize:11,fontWeight:700,marginBottom:8,color:{ sent:"#15803D", error:"#B91C1C" }[m.delivery.state]||muted}}>
+                  {{ sent:"📨 Real email delivered to the test inbox", sending:"Sending real email…", error:`⚠ Not sent: ${m.delivery.note}` }[m.delivery.state]||m.delivery.note}
+                </div>
+              )}
               <div style={{fontSize:13.5,lineHeight:1.5,whiteSpace:"pre-wrap",wordBreak:"break-word"}}><ChatText text={m.text} onPortal={openPortal}/></div>
             </div>
           );

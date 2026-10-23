@@ -1,23 +1,27 @@
-// Local test server: serves index.html and runs api/chat.js the way Vercel would.
-// Put ANTHROPIC_API_KEY=sk-ant-... in .env.local (git-ignored), then: npm run local
+// Local test server: serves index.html and runs api/*.js the way Vercel would.
+// Put ANTHROPIC_API_KEY=sk-ant-... (and optionally RESEND_API_KEY / EMAIL_TEST_INBOX) in .env.local
+// (git-ignored), then: npm run local
 import http from "node:http";
 import { readFile } from "node:fs/promises";
-import handler from "./api/chat.js";
+import chat from "./api/chat.js";
+import email from "./api/email.js";
 
 const PORT = Number(process.env.PORT) || 3000;
+const API = { "/api/chat": chat, "/api/email": email };
 
 http.createServer(async (req, res) => {
-  // Minimal shim for the Vercel response helpers the handler uses.
+  // Minimal shim for the Vercel response helpers the handlers use.
   res.status = code => { res.statusCode = code; return res; };
   res.json = obj => { res.setHeader("content-type", "application/json"); res.end(JSON.stringify(obj)); };
 
-  if (req.url === "/api/chat") {
+  const path = req.url.split("?")[0];
+  if (API[path]) {
     let raw = "";
     for await (const chunk of req) raw += chunk;
     try { req.body = raw ? JSON.parse(raw) : {}; } catch { req.body = {}; }
-    return handler(req, res);
+    return API[path](req, res);
   }
-  if (req.url === "/" || req.url === "/index.html") {
+  if (path === "/" || path === "/index.html") {
     res.setHeader("content-type", "text/html; charset=utf-8");
     return res.end(await readFile(new URL("./index.html", import.meta.url)));
   }
@@ -25,4 +29,5 @@ http.createServer(async (req, res) => {
 }).listen(PORT, "127.0.0.1", () => {
   console.log(`SolarWake running at http://localhost:${PORT}`);
   console.log(process.env.ANTHROPIC_API_KEY ? "Live AI: API key loaded" : "No ANTHROPIC_API_KEY: live calls fall back to the script");
+  console.log(process.env.RESEND_API_KEY ? `Live email: on -> ${process.env.EMAIL_TEST_INBOX || "delivered@resend.dev"}` : "No RESEND_API_KEY: emails stay in the app");
 });
