@@ -69,8 +69,9 @@ const CONTACTS = [
   {id:"C-1021",co:"SW-005",name:"Bergblick Praxis AG",seg:"Commercial",city:"Zug",kw:22,quote:39900,days:53,status:"Contacting",phone:"+41412223344",email:"s.graf@bergblick-praxis.ch",bill:820,src:"Referral",lost:"Cash flow",dm:"Dr. Sabine Graf (Partner)"},
 ];
 
-// Businesses often ignore WhatsApp from vendors, so B2B leads default to email; homeowners to WhatsApp.
-const INITIAL_LEADS = CONTACTS.map(l=>({ ...l, channel:l.seg==="Commercial"?"email":"whatsapp" }));
+// Email is the default channel (many businesses ignore vendor WhatsApps); WhatsApp can be chosen per lead.
+const INITIAL_LEADS = CONTACTS.map(l=>({ ...l, channel:"email" }));
+const FIRST_LEAD = "C-1006"; // open on a cold business lead so the email inbox shows first
 
 // Assumptions for the B2B revenue KPIs (shown in the UI so judges can see them).
 const ASSUME = { closeRate:0.35, cpa:{ Residential:180, Commercial:650 } }; // cpa = ad cost of one fresh booked appointment
@@ -288,7 +289,7 @@ function App(){
   const [leads,setLeads]=useState(INITIAL_LEADS);
   const [companyId,setCompanyId]=useState("SW-001");
   const [segFilter,setSegFilter]=useState("All");
-  const [leadId,setLeadId]=useState("C-1001");
+  const [leadId,setLeadId]=useState(FIRST_LEAD);
   const [convos,setConvos]=useState({});   // leadId -> [{role,text,time}]
   const [briefs,setBriefs]=useState({});   // leadId -> brief | "loading"
   const [activity,setActivity]=useState(SEED_ACTIVITY);
@@ -344,7 +345,9 @@ function App(){
   function pickLead(id){ setLeadId(id); setInput(""); }
   function pickCompany(id){
     setCompanyId(id);
-    const f=leads.filter(l=>l.co===id).sort((a,b)=>(a.status==="Cold"?0:1)-(b.status==="Cold"?0:1))[0];
+    // Prefer a cold business lead, then any cold lead.
+    const rank=l=>(l.status==="Cold"?0:2)+(l.seg==="Commercial"?0:1);
+    const f=leads.filter(l=>l.co===id).sort((a,b)=>rank(a)-rank(b))[0];
     if(f) pickLead(f.id);
   }
   function openPortal(id){ const l=leads.find(x=>x.id===id); if(l){ setCompanyId(l.co); setLeadId(id); } setTab("portal"); }
@@ -448,7 +451,7 @@ function App(){
     timers.current.forEach(clearTimeout); timers.current=[]; busy.current.clear();
     setLeads(INITIAL_LEADS); setConvos({}); setBriefs({}); setActivity(SEED_ACTIVITY);
     setTypingId(null); setCampaign(false); setInput(""); setToast(null);
-    setSegFilter("All"); setCompanyId("SW-001"); setLeadId("C-1001");
+    setSegFilter("All"); setCompanyId("SW-001"); setLeadId(FIRST_LEAD);
   }
 
   const sMeta={ Cold:{label:"Cold · dormant",color:C.sub,bg:"#1E2A44"},

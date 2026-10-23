@@ -8,17 +8,17 @@ The app has two sides:
 
 | Tab | Who it's for | What it shows |
 |---|---|---|
-| **Installer Console** (B2B) | The solar company (SolarWake's paying customer) | Pipeline KPIs (dormant €, reply rate, bookings, revenue recovered, ad spend avoided), funnel, one-click campaign across all cold leads, WhatsApp agent, AI advisor handoff brief, live activity feed, ROI calculator for the sales pitch |
+| **Installer Console** (B2B) | The solar company (SolarWake's paying customer) | Pipeline KPIs (dormant €, reply rate, bookings, revenue recovered, ad spend avoided), funnel, one-click campaign across all cold leads, email/WhatsApp agent, AI advisor handoff brief, live activity feed, ROI calculator for the sales pitch |
 | **Customer Page** (B2C) | The installer's lead (homeowner or business) | White-labelled page the agent links to: personal savings & payback, battery option, financing vs. savings, price-lock deadline, self-serve booking |
 
 Every lead is handled by its own **playbook**:
 - 🏠 **Homeowner (B2C):** friendly tone, bill savings, financing, price-lock deadline.
 - 🏢 **Business (B2B):** professional tone, ROI and payback, depreciation, CO₂ for ESG reporting, books the call with the CFO/owner.
 
-Each lead also has a **channel**. Many companies ignore vendor WhatsApps, so business leads default to
-✉️ **email** (inbox-style thread with subject lines and formal sign-offs) and homeowners to 💬 **WhatsApp**.
-You can switch a lead's channel in the console before the conversation starts. Emails are shown in the
-app and are not actually sent.
+Each lead also has a **channel**. Many companies ignore vendor WhatsApps, so every lead defaults to
+✉️ **email** (inbox-style thread with subject lines and formal sign-offs). You can switch any lead to
+💬 **WhatsApp** in the console before the conversation starts. Emails are shown in the app and are not
+actually sent. The console opens on a business lead so the email inbox is the first thing judges see.
 
 No external CRM: leads live in the app. A small serverless function keeps your API key off the browser.
 
@@ -83,7 +83,8 @@ In the Vercel project -> Settings -> Domains -> add a domain you own. The free
 - Suggested 3-minute flow:
   1. **Console:** point at the KPI row. "€X of pipeline the installer already paid for."
   2. Click **Reactivate all cold leads**. Openers go out and replies come in on the activity feed (replies are simulated).
-  3. Open a homeowner lead -> **Start reactivation** -> tap the quick-reply chips. The agent shares the customer-page link.
+  3. Open a homeowner lead -> **Send reactivation email** (or switch it to WhatsApp first) -> tap the suggested
+     replies. The agent shares the customer-page link.
   4. Click the link -> **Customer Page**: drag the bill slider, toggle the battery, pick a slot, confirm.
   5. Back in the Console: the lead is **Booked**, the KPIs update and an **advisor handoff brief** appears.
   6. Switch to **🏢 Businesses · B2B**, open a commercial lead and **Send reactivation email**. Reply as the
