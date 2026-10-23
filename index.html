@@ -3,20 +3,24 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SolarWake — AI Lead Reactivation</title>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<title>SolarWake — AI Revenue Recovery for Solar Installers</title>
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
 <style>
   html,body{margin:0;background:#0B1220;font-family:'Segoe UI',system-ui,-apple-system,sans-serif}
   *{box-sizing:border-box}
   .sw-dots i{display:inline-block;width:7px;height:7px;margin:0 2px;border-radius:999px;background:#9aa;animation:swb 1.2s infinite}
   .sw-dots i:nth-child(2){animation-delay:.2s}.sw-dots i:nth-child(3){animation-delay:.4s}
   @keyframes swb{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-4px);opacity:1}}
-  @media(max-width:860px){.sw-grid{grid-template-columns:1fr !important}}
+  @keyframes swin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  .sw-in{animation:swin .35s ease}
+  @media(max-width:900px){.sw-grid,.sw-2col,.sw-pgrid{grid-template-columns:1fr !important}.sw-kpi{grid-template-columns:repeat(2,1fr) !important}}
   ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:#33415c;border-radius:9px}
   select option{background:#1B2740;color:#E7ECF5}
   input::placeholder{color:#8a94a6}
+  input[type=range]{width:100%;accent-color:#F5B301}
+  .sw-portal input[type=range]{accent-color:var(--brand)}
 </style>
 </head>
 <body>
@@ -26,67 +30,143 @@ const { useState, useRef, useEffect, useMemo } = React;
 
 // ================== CONFIG ==================
 // Model string for the live Anthropic API. Verify/swap at https://docs.claude.com if needed.
-// Good options: "claude-sonnet-5" (best conversation) · "claude-haiku-4-5-20251001" (cheaper/faster).
+// Good options: "claude-sonnet-5" (best conversation) · "claude-haiku-5-5" (cheaper/faster).
 const MODEL = "claude-sonnet-5";
 
 const C = {
   night:"#0B1220", panel:"#131C2E", panel2:"#1B2740", line:"#26324B",
   gold:"#F5B301", goldSoft:"#FFE08A", text:"#E7ECF5", sub:"#8DA0C0", green:"#16A34A",
+  b2c:"#7DD3FC", b2b:"#C4B5FD",
   waHeader:"#075E54", waWall:"#ECE5DD", waIn:"#FFFFFF", waOut:"#DCF8C6", waTick:"#34B7F1",
+  pBg:"#F6F7F9", pInk:"#0F172A", pSub:"#5B6475", pLine:"#E3E7EE",
 };
 
 // ================== CRM DATA (SolarWake's own store) ==================
+// Each installer is a SolarWake (B2B) customer; their leads are homeowners (B2C) or businesses (B2B).
 const COMPANIES = [
-  { id:"SW-001", name:"BrightRoof Solar", city:"Munich",   api:"Live" },
-  { id:"SW-002", name:"HelioHaus GmbH",   city:"Berlin",   api:"Live" },
-  { id:"SW-003", name:"SonnenKraft Nord", city:"Hamburg",  api:"Live" },
-  { id:"SW-005", name:"AlpenVolt AG",     city:"Zurich",   api:"Live" },
+  { id:"SW-001", name:"BrightRoof Solar", city:"Munich",  country:"DE", api:"Live", brand:"#E8A100", slug:"brightroof" },
+  { id:"SW-002", name:"HelioHaus GmbH",   city:"Berlin",  country:"DE", api:"Live", brand:"#2563EB", slug:"heliohaus" },
+  { id:"SW-003", name:"SonnenKraft Nord", city:"Hamburg", country:"DE", api:"Live", brand:"#0891B2", slug:"sonnenkraft" },
+  { id:"SW-005", name:"AlpenVolt AG",     city:"Zurich",  country:"CH", api:"Live", brand:"#DC2626", slug:"alpenvolt" },
 ];
+// bill = current electricity bill per month (€). lost = why the deal stalled. dm = decision-maker (B2B).
 const CONTACTS = [
-  {id:"C-1001",co:"SW-001",name:"Michael Weber",seg:"Residential",city:"Munich",kw:8,quote:14200,days:47,status:"Cold",phone:"+491511234567"},
-  {id:"C-1002",co:"SW-001",name:"Sofia Klein",seg:"Residential",city:"Munich",kw:6.5,quote:9800,days:62,status:"Contacting",phone:"+491602345678"},
-  {id:"C-1003",co:"SW-001",name:"Jonas Braun",seg:"Residential",city:"Augsburg",kw:11,quote:21400,days:38,status:"Warm",phone:"+491703456789"},
-  {id:"C-1004",co:"SW-001",name:"Amelie Roth",seg:"Residential",city:"Munich",kw:5.5,quote:12100,days:90,status:"Cold",phone:"+491514567890"},
-  {id:"C-1005",co:"SW-001",name:"David Fischer",seg:"Residential",city:"Rosenheim",kw:9.5,quote:17600,days:51,status:"Cold",phone:"+491605678901"},
-  {id:"C-1006",co:"SW-001",name:"Bäckerei Hofmann GmbH",seg:"Commercial",city:"Munich",kw:42,quote:48500,days:73,status:"Cold",phone:"+498912345678"},
-  {id:"C-1007",co:"SW-001",name:"Weber & Sohn Logistik",seg:"Commercial",city:"Dachau",kw:95,quote:112000,days:44,status:"Warm",phone:"+498131234567"},
-  {id:"C-1008",co:"SW-002",name:"Lena Schuster",seg:"Residential",city:"Berlin",kw:7,quote:13100,days:55,status:"Cold",phone:"+491512223344"},
-  {id:"C-1009",co:"SW-002",name:"Paul Neumann",seg:"Residential",city:"Potsdam",kw:10,quote:19800,days:29,status:"Contacting",phone:"+491603334455"},
-  {id:"C-1010",co:"SW-002",name:"Café Sonnendeck",seg:"Commercial",city:"Berlin",kw:28,quote:36700,days:81,status:"Cold",phone:"+493044556677"},
-  {id:"C-1012",co:"SW-003",name:"Erik Hansen",seg:"Residential",city:"Hamburg",kw:8.5,quote:15600,days:67,status:"Cold",phone:"+491515556677"},
-  {id:"C-1013",co:"SW-003",name:"Nina Fischer",seg:"Residential",city:"Lübeck",kw:7.5,quote:13900,days:33,status:"Warm",phone:"+491606667788"},
-  {id:"C-1014",co:"SW-003",name:"Nordwind Hotel GmbH",seg:"Commercial",city:"Hamburg",kw:60,quote:74000,days:58,status:"Cold",phone:"+494030001122"},
-  {id:"C-1019",co:"SW-005",name:"Andreas Meier",seg:"Residential",city:"Zurich",kw:9,quote:22500,days:41,status:"Warm",phone:"+41791234567"},
-  {id:"C-1020",co:"SW-005",name:"Claudia Brunner",seg:"Residential",city:"Winterthur",kw:6.5,quote:17800,days:60,status:"Cold",phone:"+41782345678"},
-  {id:"C-1021",co:"SW-005",name:"Bergblick Praxis AG",seg:"Commercial",city:"Zug",kw:22,quote:39900,days:53,status:"Contacting",phone:"+41412223344"},
+  {id:"C-1001",co:"SW-001",name:"Michael Weber",seg:"Residential",city:"Munich",kw:8,quote:14200,days:47,status:"Cold",phone:"+491511234567",bill:125,src:"Google Ads",lost:"Price felt high"},
+  {id:"C-1002",co:"SW-001",name:"Sofia Klein",seg:"Residential",city:"Munich",kw:6.5,quote:9800,days:62,status:"Contacting",phone:"+491602345678",bill:95,src:"Website form",lost:"Timing"},
+  {id:"C-1003",co:"SW-001",name:"Jonas Braun",seg:"Residential",city:"Augsburg",kw:11,quote:21400,days:38,status:"Warm",phone:"+491703456789",bill:170,src:"Referral",lost:"Competing quote"},
+  {id:"C-1004",co:"SW-001",name:"Amelie Roth",seg:"Residential",city:"Munich",kw:5.5,quote:12100,days:90,status:"Cold",phone:"+491514567890",bill:85,src:"Facebook Ads",lost:"Unsure about savings"},
+  {id:"C-1005",co:"SW-001",name:"David Fischer",seg:"Residential",city:"Rosenheim",kw:9.5,quote:17600,days:51,status:"Cold",phone:"+491605678901",bill:140,src:"Google Ads",lost:"Price felt high"},
+  {id:"C-1006",co:"SW-001",name:"Bäckerei Hofmann GmbH",seg:"Commercial",city:"Munich",kw:42,quote:48500,days:73,status:"Cold",phone:"+498912345678",bill:1450,src:"Trade fair",lost:"Cash flow",dm:"Thomas Hofmann (Owner)"},
+  {id:"C-1007",co:"SW-001",name:"Weber & Sohn Logistik",seg:"Commercial",city:"Dachau",kw:95,quote:112000,days:44,status:"Warm",phone:"+498131234567",bill:3900,src:"LinkedIn",lost:"Needs CFO sign-off",dm:"Katrin Weber (CFO)"},
+  {id:"C-1008",co:"SW-002",name:"Lena Schuster",seg:"Residential",city:"Berlin",kw:7,quote:13100,days:55,status:"Cold",phone:"+491512223344",bill:110,src:"Google Ads",lost:"Timing"},
+  {id:"C-1009",co:"SW-002",name:"Paul Neumann",seg:"Residential",city:"Potsdam",kw:10,quote:19800,days:29,status:"Contacting",phone:"+491603334455",bill:155,src:"Website form",lost:"Competing quote"},
+  {id:"C-1010",co:"SW-002",name:"Café Sonnendeck",seg:"Commercial",city:"Berlin",kw:28,quote:36700,days:81,status:"Cold",phone:"+493044556677",bill:980,src:"Walk-in",lost:"Unsure about payback",dm:"Mara Lenz (Owner)"},
+  {id:"C-1012",co:"SW-003",name:"Erik Hansen",seg:"Residential",city:"Hamburg",kw:8.5,quote:15600,days:67,status:"Cold",phone:"+491515556677",bill:120,src:"Google Ads",lost:"Price felt high"},
+  {id:"C-1013",co:"SW-003",name:"Nina Fischer",seg:"Residential",city:"Lübeck",kw:7.5,quote:13900,days:33,status:"Warm",phone:"+491606667788",bill:105,src:"Referral",lost:"Timing"},
+  {id:"C-1014",co:"SW-003",name:"Nordwind Hotel GmbH",seg:"Commercial",city:"Hamburg",kw:60,quote:74000,days:58,status:"Cold",phone:"+494030001122",bill:2600,src:"LinkedIn",lost:"Needs board approval",dm:"Jan Petersen (GM)"},
+  {id:"C-1019",co:"SW-005",name:"Andreas Meier",seg:"Residential",city:"Zurich",kw:9,quote:22500,days:41,status:"Warm",phone:"+41791234567",bill:150,src:"Website form",lost:"Competing quote"},
+  {id:"C-1020",co:"SW-005",name:"Claudia Brunner",seg:"Residential",city:"Winterthur",kw:6.5,quote:17800,days:60,status:"Cold",phone:"+41782345678",bill:100,src:"Google Ads",lost:"Unsure about savings"},
+  {id:"C-1021",co:"SW-005",name:"Bergblick Praxis AG",seg:"Commercial",city:"Zug",kw:22,quote:39900,days:53,status:"Contacting",phone:"+41412223344",bill:820,src:"Referral",lost:"Cash flow",dm:"Dr. Sabine Graf (Partner)"},
 ];
 
-const eur = n => "€" + n.toLocaleString("de-DE");
-const now = () => new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+// Assumptions for the B2B revenue KPIs (shown in the UI so judges can see them).
+const ASSUME = { closeRate:0.35, cpa:{ Residential:180, Commercial:650 } }; // cpa = ad cost of one fresh booked appointment
 
-function buildSystem(lead, company){
-  const biz = lead.seg === "Commercial";
-  return `You are SolarWake, an AI reactivation assistant for ${company.name}, following up over WhatsApp as "Lina".
-You are messaging ${lead.name}${biz?" (a commercial / business lead)":""}, who was quoted ${eur(lead.quote)} for a ${lead.kw} kW ${biz?"commercial ":""}solar system ${lead.days} days ago in ${lead.city}, then went quiet.
-Goal: warmly re-engage, answer briefly, handle objections, create gentle honest urgency (subsidy round closing, install slots before winter${biz?", clear ROI / payback for the business":", bill savings"}), and book a 15-minute call with a human advisor${biz?" or decision-maker":""}.
-Style: WhatsApp voice — short 1-2 sentence messages, friendly, an occasional emoji, never pushy.${biz?" Slightly more professional, business tone.":""} Offer specific time slots.
-Reply with ONLY valid JSON, no markdown, no backticks: {"message":"<reply>","status":"contacting|warm|booked","appointment":<null or "Day at Time">}
-Use "warm" once interest returns; use "booked" and fill "appointment" ONLY once a specific day/time is agreed. Move toward a booking within a few messages.`;
-}
-const opener = (lead, company) => {
-  const biz = lead.seg === "Commercial";
-  const who = biz ? "there" : lead.name.split(" ")[0];
-  return `Hi ${who}! 👋 It's Lina from ${company.name}. A while back we put together a solar quote for ${biz?"your business":"your home"} — I wanted to reach out before the current subsidy round closes. Are you still thinking about going solar? ☀️`;
+// Simple, transparent solar economics used by the customer page and the agent's facts.
+const ECON = {
+  yieldKwh:{ DE:950, CH:1050 },                      // kWh per kWp per year
+  Residential:{ price:0.36, feedIn:0.08, selfUse:0.30, selfUseBattery:0.60, battery:5500, rate:0.049 },
+  Commercial:{ price:0.25, feedIn:0.07, rate:0.055 },
+  co2:0.38, inflation:0.02, degradation:0.005, priceLockDays:14,
 };
 
-const QUICK = ["Oh right, I forgot about this","It's honestly a bit expensive","I already got another quote","Does it really lower my bill?","Ok sure — when can we talk?"];
+const eur = n => "€" + Math.round(n).toLocaleString("de-DE");
+const now = () => new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+const first = n => n.replace(/^Dr\.\s*/,"").split(" ")[0];
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const coOf = l => COMPANIES.find(c=>c.id===l.co);
+const portalUrl = (l,co) => `${co.slug}.solarwake.app/p/${l.id}`;
+const fmtYears = p => p==null ? "25+ years" : `${p.toFixed(1)} years`;
+const hash = s => { let h=7; for(const ch of s) h=(h*31+ch.charCodeAt(0))%100003; return (h%1000)/1000; };
 
-// Scripted fallback so a stage demo never depends on wifi.
-const SCRIPT = [
-  { message:"So glad you replied! 😊 A lot has changed — there's a subsidy round closing soon that can meaningfully cut your upfront cost. Want me to walk you through the new numbers?", status:"warm", appointment:null },
-  { message:"Totally fair. Most customers we reactivate end up cutting their electricity bill 50–70%, and with financing there's often no money upfront. Could I book you a quick 15-min call with an advisor — Thursday 6pm or Friday morning? 🙂", status:"warm", appointment:null },
-  { message:"Perfect — you're booked for Thursday at 6:00 PM. You'll get a WhatsApp confirmation shortly. Talk soon! ☀️", status:"booked", appointment:"Thursday 6:00 PM" },
-];
+function solarModel(lead, company, { bill, battery=false, dayUse=0.7 }){
+  const biz = lead.seg==="Commercial";
+  const e = biz ? ECON.Commercial : ECON.Residential;
+  const prod = lead.kw * ECON.yieldKwh[company.country];
+  const use = bill*12 / e.price;
+  const share = biz ? dayUse : (battery ? e.selfUseBattery : e.selfUse);
+  const self = Math.min(prod*share, use*0.9);
+  const savings = self*e.price + (prod-self)*e.feedIn;
+  const cost = lead.quote + (battery && !biz ? e.battery : 0);
+  let net=-cost, payback=null, net20=0, s=savings;
+  for(let y=1;y<=25;y++){
+    const prev=net; net+=s;
+    if(payback===null && net>=0) payback = (y-1) + (-prev)/s;
+    if(y===20) net20=net;
+    s *= (1+ECON.inflation)*(1-ECON.degradation);
+  }
+  return { prod, use, self, savings, cost, payback, net20, co2:prod*ECON.co2/1000, billCut:Math.min(1, self*e.price/(bill*12)) };
+}
+const monthly = (principal, rate, years) => { const r=rate/12, n=years*12; return principal*r/(1-Math.pow(1+r,-n)); };
+
+function nextWeekdays(n){
+  const out=[], d=new Date(); d.setHours(0,0,0,0);
+  while(out.length<n){ d.setDate(d.getDate()+1); if(d.getDay()!==0&&d.getDay()!==6) out.push(new Date(d)); }
+  return out;
+}
+const dayLabel = d => d.toLocaleDateString("en-GB",{ weekday:"short", day:"numeric", month:"short" });
+
+// ================== PLAYBOOKS (B2C homeowner vs B2B business) ==================
+const JSON_RULES = `Reply with ONLY valid JSON, no markdown, no backticks: {"message":"<reply>","status":"contacting|warm|booked","appointment":<null or "Day at Time">}
+Use "warm" once interest returns; use "booked" and fill "appointment" ONLY once a specific day/time is agreed. Move toward a booking within a few messages.`;
+
+function leadFacts(lead, co){
+  const m = solarModel(lead, co, { bill:lead.bill });
+  return `Facts you may use (do not invent other figures, subsidies or prices):
+- Quote: ${eur(lead.quote)} for a ${lead.kw} kW system in ${lead.city}, sent ${lead.days} days ago. Lead source: ${lead.src}. Why it stalled: ${lead.lost}.
+- Estimated savings: ${eur(m.savings)} per year, simple payback about ${fmtYears(m.payback)}, 20-year net gain about ${eur(m.net20)}, ${m.co2.toFixed(1)} t CO2 avoided per year.
+- The quoted price is held for ${ECON.priceLockDays} more days.
+- Personal page with live numbers, financing and self-booking: ${portalUrl(lead,co)}`;
+}
+
+const PLAYBOOKS = {
+  Residential: {
+    tag:"B2C", label:"Homeowner playbook", color:C.b2c, icon:"🏠",
+    focus:"Bill savings · financing · price-lock deadline",
+    quick:["Oh right, I forgot about this","It's honestly a bit expensive","I already got another quote","Does it really lower my bill?","Ok sure — when can we talk?"],
+    replies:["Oh right, I forgot about this — still interested actually","Is the price still the same?","Hmm, how much would I really save?"],
+    opener:(l,co)=>`Hi ${first(l.name)}! 👋 It's Lina from ${co.name}. A while back we put together a solar quote for your home — your price is still held for ${ECON.priceLockDays} more days, so I wanted to check in. Are you still thinking about going solar? ☀️`,
+    system:(l,co)=>`You are SolarWake, an AI reactivation assistant for ${co.name}, following up over WhatsApp as "Lina".
+You are messaging homeowner ${l.name}, who received a solar quote and then went quiet.
+Playbook (B2C homeowner): warm, empathetic, never pushy. Short WhatsApp messages (1-2 sentences, an occasional emoji). Focus on a lower electricity bill, financing with no big upfront payment, and the honest price-lock deadline. When they ask about cost or savings, share their personal page link once.
+${leadFacts(l,co)}
+Goal: book a free 15-minute call with a human advisor. Offer two specific time slots.
+${JSON_RULES}`,
+    script:(l,co)=>[
+      { message:`So glad you replied! 😊 I re-ran your numbers with today's electricity prices — everything's on your personal page, incl. financing: ${portalUrl(l,co)}`, status:"warm", appointment:null },
+      { message:"Totally fair. Most homeowners we work with cover a big part of their bill with solar, and with financing there's no large upfront payment. Could I book you a free 15-min call with an advisor — Thursday 6pm or Friday morning? 🙂", status:"warm", appointment:null },
+      { message:"Perfect — you're booked for Thursday at 6:00 PM. You'll get a WhatsApp confirmation shortly. Talk soon! ☀️", status:"booked", appointment:"Thursday 6:00 PM" },
+    ],
+  },
+  Commercial: {
+    tag:"B2B", label:"Business playbook", color:C.b2b, icon:"🏢",
+    focus:"ROI & payback · depreciation · ESG · decision-maker",
+    quick:["Send me the ROI numbers","Cash flow is tight this year","Our CFO needs to sign off","What's the payback period?","Fine — book a call with our CFO"],
+    replies:["Yes, still on our list. What would the payback be?","Send over the updated numbers please","Timing is tricky, but let's hear it"],
+    opener:(l,co)=>`Hello ${l.dm?first(l.dm):"there"}, this is Lina from ${co.name} Business Energy. We prepared a ${l.kw} kW rooftop proposal for ${l.name} a few weeks ago — with current power prices the business case has improved. Is energy cost still on your agenda this year?`,
+    system:(l,co)=>`You are SolarWake, an AI reactivation assistant for ${co.name} Business Energy, following up over WhatsApp as "Lina".
+You are messaging ${l.dm||"the decision-maker"} at ${l.name}, a commercial lead that received a rooftop solar proposal and then went quiet.
+Playbook (B2B commercial): professional and concise, no emoji, no hype. Speak to annual savings, payback period, operating-cost reduction, depreciation and CO2 figures for ESG reporting. If they mention a CFO, owner, partner or board, aim to book a call that includes that decision-maker. Share their business-case page link once when they ask for numbers.
+${leadFacts(l,co)}
+Goal: book a 20-minute call with a commercial advisor (and their decision-maker). Offer two specific time slots.
+${JSON_RULES}`,
+    script:(l,co)=>{ const m=solarModel(l,co,{ bill:l.bill }); return [
+      { message:`Thanks for getting back to me. At today's prices the system saves roughly ${eur(m.savings)} a year with a payback of about ${fmtYears(m.payback)}. Full business case incl. depreciation and CO₂ for your ESG report: ${portalUrl(l,co)}`, status:"warm", appointment:null },
+      { message:"Understood — that's usually a CFO-level decision. Financing can be structured so the monthly savings cover most of the instalment. Shall I set up a 20-minute call with you and your CFO — Tuesday 10:00 or Wednesday 14:00?", status:"warm", appointment:null },
+      { message:"Done — Tuesday at 10:00 is booked with our commercial advisor. I'll send a calendar invite and a one-page ROI summary for your CFO beforehand.", status:"booked", appointment:"Tuesday 10:00" },
+    ]; },
+  },
+};
 
 function parseAgent(raw){
   let t=(raw||"").trim().replace(/```json/gi,"").replace(/```/g,"").trim();
@@ -97,87 +177,246 @@ function parseAgent(raw){
   }catch{ return { message:raw||"Sorry, could you repeat that?", status:"warm", appointment:null }; }
 }
 
+async function callClaude(system, messages, max_tokens=2000){
+  const res=await fetch("/api/chat",{ method:"POST", headers:{"content-type":"application/json"},
+    body:JSON.stringify({ model:MODEL, max_tokens, system, messages, output_config:{ effort:"low" } }) });
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.message||data.error);
+  return (data.content||[]).filter(i=>i.type==="text").map(i=>i.text).join("\n");
+}
+// The Messages API needs the first turn to be "user", so the agent's opener is preceded by a short note.
+const toApi = history => [{ role:"user", content:"(Lead record opened. You sent the first WhatsApp message below.)" },
+  ...history.map(m=>({ role:m.role==="agent"?"assistant":"user", content:m.text }))];
+
+// ================== ADVISOR HANDOFF BRIEF ==================
+const BRIEF_SYSTEM = `You write handoff briefs for solar sales advisors who are about to call a lead that an AI agent just re-engaged.
+Reply with ONLY valid JSON, no markdown: {"summary":"<2 sentences>","interest":"high|medium|low","objections":["<short>"],"talking_points":["<short>","<short>","<short>"],"next_step":"<1 sentence>"}`;
+
+function heuristicBrief(lead, co, messages, via){
+  const said = messages.filter(m=>m.role==="customer").map(m=>m.text.toLowerCase()).join(" ");
+  const rules = [[/expens|price|cost|afford/,"Upfront cost"],[/another quote|other quote|competitor/,"Has a competing quote"],
+    [/bill|save|saving|roi|payback|numbers/,"Wants proof of savings / ROI"],[/cfo|sign off|board|boss|partner/,"Needs decision-maker sign-off"],
+    [/cash flow|budget|tight/,"Cash-flow / budget timing"],[/forgot/,"Lost track — timing, not rejection"]];
+  const objections = rules.filter(([re])=>re.test(said)).map(([,t])=>t);
+  const m = solarModel(lead, co, { bill:lead.bill });
+  const biz = lead.seg==="Commercial";
+  return {
+    summary:`${lead.name} (${biz?"business":"homeowner"}) re-engaged ${via} after ${lead.days} days of silence. Quote: ${eur(lead.quote)} for ${lead.kw} kW; originally stalled on "${lead.lost.toLowerCase()}".`,
+    interest: messages.length>=5 || via.includes("page") ? "high" : "medium",
+    objections: objections.length ? objections : [lead.lost],
+    talking_points: biz
+      ? [`Payback ≈ ${fmtYears(m.payback)}, ${eur(m.savings)}/yr savings`, `Linear depreciation ≈ ${eur(lead.quote/20)}/yr over 20 yrs`, `${m.co2.toFixed(1)} t CO₂/yr avoided — usable in ESG reporting`]
+      : [`Saves ≈ ${eur(m.savings/12)}/month on a ${eur(lead.bill)} bill`, `Price held ${ECON.priceLockDays} more days`, `Battery option lifts self-use from ~30% to ~60%`],
+    next_step: biz ? `Bring a one-page ROI summary for ${lead.dm||"the decision-maker"}; confirm the approval timeline.` : "Walk through the savings page together and compare cash vs. financing.",
+  };
+}
+
+// ================== ICONS ==================
 function Icon({d,size=18,color="currentColor",fill="none"}){
   return <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>;
 }
 const SendI = p => <Icon {...p} d={<><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>} />;
 const PhoneI = p => <Icon {...p} d={<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.81.36 1.6.7 2.34a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.74-1.27a2 2 0 0 1 2.11-.45c.74.34 1.53.57 2.34.7A2 2 0 0 1 22 16.92z"/>} />;
 
+const initials = n => n.split(" ").map(x=>x[0]).slice(0,2).join("");
+const STATUS_COLOR = { Booked:"#7BE0A6", Warm:C.gold, Contacting:C.goldSoft, Cold:C.sub };
+const panel = { background:C.panel, border:`1px solid ${C.line}`, borderRadius:18, padding:18 };
+const label = { fontSize:11.5, color:C.sub, letterSpacing:0.6, textTransform:"uppercase", fontWeight:700 };
+
+function SegBadge({seg, small}){
+  const pb=PLAYBOOKS[seg];
+  return <span style={{fontSize:small?10:11,fontWeight:800,color:pb.color,border:`1px solid ${pb.color}55`,background:`${pb.color}14`,padding:small?"1px 6px":"3px 8px",borderRadius:999,letterSpacing:0.4,whiteSpace:"nowrap"}}>{pb.tag}</span>;
+}
+
+// Renders chat text, turning the customer-page link into a clickable jump to the B2C tab.
+function ChatText({text, onPortal}){
+  const parts=text.split(/(\S*solarwake\.app\/p\/[A-Za-z0-9-]+)/g);
+  return parts.map((p,i)=>{
+    const m=p.match(/solarwake\.app\/p\/([A-Za-z0-9-]+)/);
+    return m ? <a key={i} href="#" onClick={e=>{e.preventDefault();onPortal(m[1]);}} style={{color:"#027EB5",textDecoration:"underline",wordBreak:"break-all"}}>{p}</a> : <React.Fragment key={i}>{p}</React.Fragment>;
+  });
+}
+
+// ================== APP ==================
+const SEED_ACTIVITY = [
+  { t:now(), text:"🧠 Playbooks loaded: Homeowner (B2C) · Business (B2B)", kind:"sys" },
+  { t:now(), text:`🔌 CRM sync complete — ${CONTACTS.length} leads across ${COMPANIES.length} installers`, kind:"sys" },
+];
+
 function App(){
+  const [tab,setTab]=useState("console");
   const [leads,setLeads]=useState(CONTACTS);
   const [companyId,setCompanyId]=useState("SW-001");
+  const [segFilter,setSegFilter]=useState("All");
   const [leadId,setLeadId]=useState("C-1001");
-  const [messages,setMessages]=useState([]);
-  const [started,setStarted]=useState(false);
-  const [status,setStatus]=useState("cold");
-  const [appointment,setAppointment]=useState(null);
-  const [typing,setTyping]=useState(false);
+  const [convos,setConvos]=useState({});   // leadId -> [{role,text,time}]
+  const [briefs,setBriefs]=useState({});   // leadId -> brief | "loading"
+  const [activity,setActivity]=useState(SEED_ACTIVITY);
+  const [typingId,setTypingId]=useState(null);
   const [input,setInput]=useState("");
-  const [toast,setToast]=useState(false);
+  const [toast,setToast]=useState(null);
   const [demoMode,setDemoMode]=useState(false);
+  const [campaign,setCampaign]=useState(false);
+  const busy=useRef(new Set());
+  const timers=useRef([]);
   const scrollRef=useRef(null);
 
   const company=COMPANIES.find(c=>c.id===companyId);
-  const lead=leads.find(l=>l.id===leadId)||leads.find(l=>l.co===companyId);
   const companyLeads=leads.filter(l=>l.co===companyId);
-  const stats=useMemo(()=>{
-    const d=companyLeads.filter(l=>l.status!=="Booked");
-    return { dormant:d.length, atRisk:d.reduce((s,l)=>s+l.quote,0), booked:companyLeads.filter(l=>l.status==="Booked").length };
-  },[leads,companyId]);
-  const custTurns=messages.filter(m=>m.role==="customer").length;
+  const visibleLeads=companyLeads.filter(l=>segFilter==="All"||l.seg===segFilter);
+  const lead=leads.find(l=>l.id===leadId)||companyLeads[0];
+  const messages=(lead&&convos[lead.id])||[];
+  const started=messages.length>0;
+  const typing=lead&&typingId===lead.id;
+  const pb=lead?PLAYBOOKS[lead.seg]:PLAYBOOKS.Residential;
 
-  useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[messages,typing]);
+  const kpi=useMemo(()=>{
+    const v=visibleLeads, booked=v.filter(l=>l.status==="Booked");
+    const contacted=v.filter(l=>l.status!=="Cold"), replied=v.filter(l=>l.status==="Warm"||l.status==="Booked");
+    return {
+      pipeline:v.filter(l=>l.status!=="Booked").reduce((s,l)=>s+l.quote,0),
+      dormant:v.filter(l=>l.status!=="Booked").length,
+      contacted:contacted.length, replied:replied.length,
+      replyRate:contacted.length?Math.round(100*replied.length/contacted.length):0,
+      booked:booked.length,
+      adSaved:booked.reduce((s,l)=>s+ASSUME.cpa[l.seg],0),
+      revenue:booked.reduce((s,l)=>s+l.quote,0)*ASSUME.closeRate,
+      funnel:["Cold","Contacting","Warm","Booked"].map(s=>({ s, n:v.filter(l=>l.status===s).length })),
+    };
+  },[leads,companyId,segFilter]);
 
-  function pickLead(id){ setLeadId(id); setStarted(false); setMessages([]); setStatus("cold"); setAppointment(null); setTyping(false); setInput(""); }
-  function pickCompany(id){ setCompanyId(id); const f=leads.filter(l=>l.co===id).sort((a,b)=>a.status==="Cold"?-1:1)[0]; pickLead(f?f.id:""); }
-  function start(){ if(started||!lead) return; setStarted(true); setStatus("contacting"); setMessages([{role:"agent",text:opener(lead,company),time:now()}]); }
+  useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[messages.length,typing]);
+  useEffect(()=>()=>timers.current.forEach(clearTimeout),[]);
 
-  async function liveAgent(history){
-    const apiMsgs=history.map(m=>({role:m.role==="agent"?"assistant":"user",content:m.text}));
-    const res=await fetch("/api/chat",{ method:"POST", headers:{"content-type":"application/json"},
-      body:JSON.stringify({ model:MODEL, max_tokens:1000, system:buildSystem(lead,company), messages:apiMsgs }) });
-    const data=await res.json();
-    if(data.error) throw new Error(data.error.message||data.error);
-    const text=(data.content||[]).filter(i=>i.type==="text").map(i=>i.text).join("\n");
-    return parseAgent(text);
+  // When the open lead's last message is from the customer, the agent answers it.
+  useEffect(()=>{
+    if(!lead||lead.status==="Booked") return;
+    const m=convos[lead.id]||[];
+    if(m.length && m[m.length-1].role==="customer") agentReply(lead, m);
+  },[leadId, convos]);
+
+  const later=(fn,ms)=>timers.current.push(setTimeout(fn,ms));
+  const log=(text,kind="sys")=>setActivity(a=>[{ t:now(), text, kind }, ...a].slice(0,50));
+  const flash=(text,color=C.green)=>{ setToast({text,color}); later(()=>setToast(null),4200); };
+  const setConvo=(id,fn)=>setConvos(c=>({ ...c, [id]:fn(c[id]||[]) }));
+  const setLeadStatus=(id,status,extra={})=>setLeads(ls=>ls.map(l=>l.id!==id||l.status==="Booked"?l:{ ...l, status, ...extra }));
+
+  function pickLead(id){ setLeadId(id); setInput(""); }
+  function pickCompany(id){
+    setCompanyId(id);
+    const f=leads.filter(l=>l.co===id).sort((a,b)=>(a.status==="Cold"?0:1)-(b.status==="Cold"?0:1))[0];
+    if(f) pickLead(f.id);
+  }
+  function openPortal(id){ const l=leads.find(x=>x.id===id); if(l){ setCompanyId(l.co); setLeadId(id); } setTab("portal"); }
+
+  function start(){
+    if(started||!lead) return;
+    const co=coOf(lead);
+    setConvo(lead.id,()=>[{ role:"agent", text:PLAYBOOKS[lead.seg].opener(lead,co), time:now() }]);
+    if(lead.status==="Cold") setLeadStatus(lead.id,"Contacting");
+    log(`📤 ${PLAYBOOKS[lead.seg].tag} opener sent to ${lead.name}`,"out");
   }
 
-  async function send(text){
-    const clean=(text||"").trim(); if(!clean||typing||!started) return;
+  function send(text){
+    const clean=(text||"").trim(); if(!clean||typing||!started||!lead) return;
     setInput("");
-    const history=[...messages,{role:"customer",text:clean,time:now()}];
-    setMessages(history); setTyping(true);
-    const turn=history.filter(m=>m.role==="customer").length; // 1-based
+    setConvo(lead.id,m=>[...m,{ role:"customer", text:clean, time:now() }]);
+  }
+
+  async function agentReply(l, history){
+    if(busy.current.has(l.id)) return;
+    busy.current.add(l.id);
+    const co=coOf(l), play=PLAYBOOKS[l.seg];
+    setTypingId(l.id);
+    const turn=history.filter(m=>m.role==="customer").length;
+    const script=play.script(l,co);
     let reply;
     try{
-      if(demoMode){ await new Promise(r=>setTimeout(r,750)); reply=SCRIPT[Math.min(turn-1,SCRIPT.length-1)]; }
-      else{ reply=await liveAgent(history); }
+      if(demoMode){ await sleep(800); reply=script[Math.min(turn-1,script.length-1)]; }
+      else reply=parseAgent(await callClaude(play.system(l,co), toApi(history)));
     }catch(e){
       // Auto-fallback to script if the live call fails — the demo keeps going.
-      reply=SCRIPT[Math.min(turn-1,SCRIPT.length-1)];
+      reply=script[Math.min(turn-1,script.length-1)];
     }
-    setTyping(false);
-    setMessages(m=>[...m,{role:"agent",text:reply.message,time:now()}]);
-    if(reply.status&&reply.status!=="cold") setStatus(reply.status);
-    if(reply.status==="booked"&&reply.appointment){
-      setAppointment(reply.appointment);
-      setLeads(ls=>ls.map(l=>l.id===lead.id?{...l,status:"Booked"}:l));
-      setToast(true); setTimeout(()=>setToast(false),4500);
-    }
+    const full=[...history,{ role:"agent", text:reply.message, time:now() }];
+    setConvo(l.id,()=>full);
+    setTypingId(t=>t===l.id?null:t);
+    busy.current.delete(l.id);
+    if(reply.status==="booked"&&reply.appointment) markBooked(l, reply.appointment, "via the WhatsApp agent", full);
+    else if(reply.status==="warm") setLeadStatus(l.id,"Warm");
   }
 
-  const sMeta={ cold:{label:"Cold · dormant",color:C.sub,bg:"#1E2A44"},
-    contacting:{label:"Contacting…",color:C.goldSoft,bg:"#3A2E12"},
-    warm:{label:"Warm · engaged",color:C.gold,bg:"#3A2E12"},
-    booked:{label:"Appointment booked",color:"#BBF7D0",bg:"#0F3D22"} }[status];
+  function markBooked(l, appointment, via, history){
+    setLeadStatus(l.id,"Booked",{ appointment, via });
+    flash(`✓ ${l.name} booked — ${appointment} 🎉`);
+    log(`📅 ${l.name} booked ${appointment} ${via}`,"win");
+    makeBrief(l, history, via);
+  }
 
-  const initials=n=>n.split(" ").map(x=>x[0]).slice(0,2).join("");
+  async function makeBrief(l, history, via){
+    const co=coOf(l);
+    setBriefs(b=>({ ...b, [l.id]:"loading" }));
+    let brief;
+    try{
+      if(demoMode||!history.length) throw new Error("offline");
+      const transcript=history.map(m=>`${m.role==="agent"?"Agent":"Lead"}: ${m.text}`).join("\n");
+      const raw=await callClaude(BRIEF_SYSTEM,[{ role:"user", content:`Lead: ${l.name} (${l.seg}, ${l.kw} kW, quote ${eur(l.quote)}, stalled on "${l.lost}"${l.dm?`, decision-maker ${l.dm}`:""}). Booked ${via}.\n\nTranscript:\n${transcript}` }]);
+      const t=raw.slice(raw.indexOf("{"), raw.lastIndexOf("}")+1);
+      brief={ ...JSON.parse(t), ai:true };
+    }catch{ brief=heuristicBrief(l, co, history, via); }
+    setBriefs(b=>({ ...b, [l.id]:brief }));
+    log(`📋 Advisor brief for ${l.name} pushed to CRM`,"sys");
+  }
+
+  // Bulk reactivation across every cold lead in the current view (replies are simulated).
+  function runCampaign(){
+    const targets=visibleLeads.filter(l=>l.status==="Cold");
+    if(campaign) return;
+    if(!targets.length){ flash("No cold leads left in this view",C.panel2); return; }
+    setCampaign(true);
+    log(`🚀 Campaign launched — ${targets.length} dormant lead${targets.length>1?"s":""} at ${company.name} (${segFilter==="All"?"B2C + B2B":PLAYBOOKS[segFilter].tag})`,"sys");
+    let last=0;
+    targets.forEach((l,i)=>{
+      const play=PLAYBOOKS[l.seg], co=coOf(l);
+      later(()=>{
+        setConvo(l.id,m=>m.length?m:[{ role:"agent", text:play.opener(l,co), time:now() }]);
+        setLeadStatus(l.id,"Contacting");
+        log(`📤 ${play.tag} opener sent to ${l.name}`,"out");
+      }, 400+i*450);
+      if(hash(l.id)<0.6){
+        const reply=play.replies[Math.floor(hash(l.id+"r")*play.replies.length)];
+        const at=2600+i*700; last=Math.max(last,at);
+        later(()=>{
+          setConvo(l.id,m=>[...m,{ role:"customer", text:reply, time:now() }]);
+          setLeadStatus(l.id,"Warm");
+          log(`💬 ${l.name}: "${reply}"`,"in");
+        }, at);
+      }
+    });
+    later(()=>{ setCampaign(false); log("✅ Campaign wave sent — open a warm lead to watch the agent pick it up","sys"); }, Math.max(last, 400+targets.length*450)+600);
+  }
+
+  function bookFromPortal(l, slot){
+    markBooked(l, slot, "via the customer page", convos[l.id]||[]);
+  }
+
+  function reset(){
+    timers.current.forEach(clearTimeout); timers.current=[]; busy.current.clear();
+    setLeads(CONTACTS); setConvos({}); setBriefs({}); setActivity(SEED_ACTIVITY);
+    setTypingId(null); setCampaign(false); setInput(""); setToast(null);
+    setSegFilter("All"); setCompanyId("SW-001"); setLeadId("C-1001");
+  }
+
+  const sMeta={ Cold:{label:"Cold · dormant",color:C.sub,bg:"#1E2A44"},
+    Contacting:{label:"Contacting…",color:C.goldSoft,bg:"#3A2E12"},
+    Warm:{label:"Warm · engaged",color:C.gold,bg:"#3A2E12"},
+    Booked:{label:"Appointment booked",color:"#BBF7D0",bg:"#0F3D22"} }[lead?lead.status:"Cold"];
 
   return (
     <div style={{minHeight:"100vh",color:C.text}}>
-      <div style={{maxWidth:1160,margin:"0 auto",padding:"20px 18px 34px"}}>
+      <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px 34px"}}>
         {/* Header */}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12,marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12,marginBottom:14}}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             <div style={{width:42,height:42,borderRadius:12,background:C.gold,display:"grid",placeItems:"center",boxShadow:`0 0 22px ${C.gold}55`,fontSize:22}}>☀️</div>
             <div>
@@ -197,168 +436,493 @@ function App(){
           </div>
         </div>
 
-        <div className="sw-grid" style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 380px",gap:18,alignItems:"start"}}>
-          {/* LEFT — CRM */}
-          <div style={{background:C.panel,border:`1px solid ${C.line}`,borderRadius:18,padding:18}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginBottom:14,flexWrap:"wrap"}}>
-              <div style={{display:"flex",alignItems:"center",gap:9}}>
-                <span style={{fontSize:12,fontWeight:700,color:C.sub,textTransform:"uppercase",letterSpacing:1}}>Solar company</span>
-                <select value={companyId} onChange={e=>pickCompany(e.target.value)}
-                  style={{background:C.panel2,color:C.text,border:`1px solid ${C.line}`,borderRadius:9,padding:"7px 10px",fontSize:13,fontWeight:600,outline:"none"}}>
-                  {COMPANIES.map(c=><option key={c.id} value={c.id}>{c.name} — {c.city}</option>)}
-                </select>
-              </div>
-              <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:11.5,color:"#7BE0A6"}}>
-                <span style={{width:7,height:7,borderRadius:999,background:C.green,boxShadow:`0 0 7px ${C.green}`}}/> CRM {company.api}
-              </span>
-            </div>
-
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
-              {[
-                {k:"Dormant leads",v:String(stats.dormant),sub:"in this pipeline"},
-                {k:"Pipeline at risk",v:eur(stats.atRisk),sub:"already-paid leads"},
-                {k:"Appointments booked",v:String(stats.booked),sub:"no new ad spend",hot:true},
-              ].map(s=>(
-                <div key={s.k} style={{background:C.panel2,border:`1px solid ${C.line}`,borderRadius:12,padding:"12px"}}>
-                  <div style={{fontSize:s.v.length>7?18:24,fontWeight:800,color:s.hot?C.gold:C.text}}>{s.v}</div>
-                  <div style={{fontSize:11.5,color:C.text,fontWeight:600,lineHeight:1.2,marginTop:2}}>{s.k}</div>
-                  <div style={{fontSize:10.5,color:C.sub,marginTop:1}}>{s.sub}</div>
-                </div>
-              ))}
-            </div>
-
-            {lead&&(
-              <div style={{background:`linear-gradient(180deg,${C.panel2},${C.panel})`,
-                border:`1.5px solid ${status==="booked"?C.green:status==="cold"?C.line:C.gold}`,
-                borderRadius:14,padding:16,marginBottom:14,
-                boxShadow:status==="booked"?`0 0 24px ${C.green}44`:status!=="cold"?`0 0 20px ${C.gold}22`:"none",transition:"all .45s ease"}}>
-                <div style={{display:"flex",alignItems:"center",gap:12}}>
-                  <div style={{width:44,height:44,borderRadius:999,background:"#2A3A5C",display:"grid",placeItems:"center",fontWeight:700,fontSize:13,color:C.goldSoft}}>
-                    {lead.seg==="Commercial"?"🏢":initials(lead.name)}
-                  </div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{lead.name}</div>
-                    <div style={{fontSize:12,color:C.sub}}>{lead.seg} · {lead.kw} kW · quoted {eur(lead.quote)} · {lead.days}d ago</div>
-                  </div>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginTop:12,flexWrap:"wrap"}}>
-                  <span style={{fontSize:12,fontWeight:700,color:sMeta.color,background:sMeta.bg,padding:"5px 11px",borderRadius:999,transition:"all .4s"}}>
-                    {status==="booked"?"✅ ":""}{sMeta.label}
-                  </span>
-                  {appointment&&(
-                    <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12,fontWeight:700,color:"#BBF7D0",background:"#0F3D22",padding:"5px 11px",borderRadius:999}}>
-                      📅 {appointment}
-                    </span>
-                  )}
-                  {status==="booked"&&(
-                    <span style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:11,fontWeight:700,color:"#9FD0FF"}}>✓ synced to CRM</span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div style={{fontSize:11.5,color:C.sub,marginBottom:8,letterSpacing:0.4}}>DORMANT LEADS — {company.name} · click one to work it</div>
-            <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:250,overflowY:"auto",paddingRight:2}}>
-              {companyLeads.map(l=>{
-                const active=l.id===leadId;
-                return (
-                  <button key={l.id} onClick={()=>pickLead(l.id)}
-                    style={{textAlign:"left",display:"flex",alignItems:"center",gap:11,background:active?C.panel2:C.night,
-                      border:`1px solid ${active?C.gold:C.line}`,borderRadius:11,padding:"10px 12px",cursor:"pointer",width:"100%"}}>
-                    <div style={{width:30,height:30,borderRadius:999,background:"#243352",display:"grid",placeItems:"center",fontSize:14,flexShrink:0}}>
-                      {l.seg==="Commercial"?"🏢":"🏠"}
-                    </div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:13,fontWeight:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{l.name}</div>
-                      <div style={{fontSize:11,color:C.sub}}>quoted {eur(l.quote)} · {l.days}d ago</div>
-                    </div>
-                    <span style={{fontSize:11,fontWeight:700,flexShrink:0,color:l.status==="Booked"?"#7BE0A6":l.status==="Warm"?C.gold:l.status==="Contacting"?C.goldSoft:C.sub}}>
-                      {l.status==="Booked"?"✅ ":""}{l.status}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* RIGHT — WhatsApp */}
-          <div style={{background:"#000",borderRadius:26,padding:8,boxShadow:"0 20px 50px rgba(0,0,0,.5)"}}>
-            <div style={{background:C.waWall,borderRadius:20,overflow:"hidden",display:"flex",flexDirection:"column",height:620}}>
-              <div style={{background:C.waHeader,color:"#fff",padding:"12px 14px",display:"flex",alignItems:"center",gap:11}}>
-                <div style={{width:38,height:38,borderRadius:999,background:"#25D366",display:"grid",placeItems:"center",fontWeight:700,color:"#075E54",fontSize:13}}>
-                  {lead&&(lead.seg==="Commercial"?"🏢":initials(lead.name))}
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontWeight:600,fontSize:15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{lead?lead.name:"—"}</div>
-                  <div style={{fontSize:11.5,opacity:.85}}>{typing?"typing…":"online"}</div>
-                </div>
-                <PhoneI size={18} color="#fff"/>
-              </div>
-
-              <div ref={scrollRef} style={{flex:1,overflowY:"auto",padding:"14px 12px",display:"flex",flexDirection:"column",gap:8}}>
-                {!started&&(
-                  <div style={{margin:"auto",textAlign:"center",color:"#667",maxWidth:250}}>
-                    <div style={{fontSize:13,marginBottom:14,lineHeight:1.5}}>
-                      {lead?<>This {lead.seg.toLowerCase()} lead went cold {lead.days} days ago after a {eur(lead.quote)} quote. Press start to watch SolarWake win them back.</>:"Select a lead to begin."}
-                    </div>
-                    {lead&&(
-                      <button onClick={start} style={{display:"inline-flex",alignItems:"center",gap:8,background:C.waHeader,color:"#fff",border:"none",padding:"11px 20px",borderRadius:999,fontWeight:700,fontSize:14,cursor:"pointer"}}>▶ Start reactivation</button>
-                    )}
-                  </div>
-                )}
-                {messages.map((m,i)=>{
-                  const mine=m.role==="customer";
-                  return (
-                    <div key={i} style={{alignSelf:mine?"flex-end":"flex-start",maxWidth:"82%"}}>
-                      <div style={{background:mine?C.waOut:C.waIn,color:"#111",padding:"7px 10px 5px",borderRadius:9,
-                        borderTopRightRadius:mine?2:9,borderTopLeftRadius:mine?9:2,boxShadow:"0 1px 1px rgba(0,0,0,.12)",fontSize:14,lineHeight:1.4}}>
-                        {m.text}
-                        <span style={{float:"right",fontSize:10,color:"#8a9",marginLeft:8,marginTop:4}}>{m.time}{mine?" ✓✓":""}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-                {typing&&(
-                  <div style={{alignSelf:"flex-start",background:C.waIn,padding:"10px 14px",borderRadius:9,borderTopLeftRadius:2,boxShadow:"0 1px 1px rgba(0,0,0,.12)"}}>
-                    <span className="sw-dots"><i/><i/><i/></span>
-                  </div>
-                )}
-              </div>
-
-              {started&&status!=="booked"&&(
-                <div style={{display:"flex",gap:6,overflowX:"auto",padding:"8px 10px 0"}}>
-                  {QUICK.map(q=>(
-                    <button key={q} onClick={()=>send(q)} disabled={typing}
-                      style={{whiteSpace:"nowrap",fontSize:12,background:"#fff",color:C.waHeader,border:`1px solid ${C.waHeader}44`,padding:"6px 11px",borderRadius:999,cursor:typing?"default":"pointer",opacity:typing?.5:1,fontWeight:600}}>{q}</button>
-                  ))}
-                </div>
-              )}
-
-              <div style={{display:"flex",alignItems:"center",gap:8,padding:10,background:"#F0F0F0"}}>
-                <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send(input)}
-                  disabled={!started||typing} placeholder={started?"Reply as the customer…":"Press start first"}
-                  style={{flex:1,border:"none",borderRadius:999,padding:"10px 14px",fontSize:14,outline:"none",background:"#fff",color:"#111"}}/>
-                <button onClick={()=>send(input)} disabled={!started||typing}
-                  style={{width:42,height:42,borderRadius:999,background:C.waHeader,border:"none",display:"grid",placeItems:"center",cursor:"pointer",flexShrink:0}}>
-                  <SendI size={18} color="#fff"/>
-                </button>
-              </div>
-            </div>
-          </div>
+        {/* Tabs */}
+        <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+          {[{id:"console",t:"Installer Console",s:"B2B · for solar companies"},{id:"portal",t:"Customer Page",s:"B2C · what the lead sees"}].map(x=>{
+            const on=tab===x.id;
+            return (
+              <button key={x.id} onClick={()=>setTab(x.id)} style={{textAlign:"left",cursor:"pointer",background:on?C.panel2:"transparent",
+                border:`1px solid ${on?C.gold:C.line}`,borderRadius:12,padding:"9px 16px",color:on?C.text:C.sub}}>
+                <div style={{fontWeight:800,fontSize:14}}>{x.t}</div>
+                <div style={{fontSize:11,color:on?C.gold:C.sub}}>{x.s}</div>
+              </button>
+            );
+          })}
         </div>
+
+        {tab==="console" ? (
+          <Console {...{company,companyId,pickCompany,segFilter,setSegFilter,kpi,lead,leadId,pickLead,visibleLeads,messages,started,typing,pb,sMeta,
+            start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal}} />
+        ) : (
+          <Portal key={lead?lead.id:"none"} lead={lead} company={company} companyLeads={companyLeads} pickLead={pickLead}
+            pickCompany={pickCompany} onBook={bookFromPortal} backToConsole={()=>setTab("console")} />
+        )}
 
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:16,flexWrap:"wrap",gap:10}}>
           <div style={{fontSize:12,color:C.sub}}>⚡ The agent runs live on Anthropic's Claude API. Same lead volume → more booked appointments.</div>
-          <button onClick={()=>pickCompany(companyId)} style={{display:"inline-flex",alignItems:"center",gap:7,background:C.panel,color:C.sub,border:`1px solid ${C.line}`,padding:"8px 14px",borderRadius:999,fontSize:13,cursor:"pointer",fontWeight:600}}>↺ Reset demo</button>
+          <button onClick={reset} style={{display:"inline-flex",alignItems:"center",gap:7,background:C.panel,color:C.sub,border:`1px solid ${C.line}`,padding:"8px 14px",borderRadius:999,fontSize:13,cursor:"pointer",fontWeight:600}}>↺ Reset demo</button>
         </div>
       </div>
 
       {toast&&(
-        <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:C.green,color:"#fff",padding:"14px 22px",borderRadius:14,fontWeight:700,fontSize:15,boxShadow:"0 12px 30px rgba(0,0,0,.4)",zIndex:50}}>
-          ✓ Appointment booked{appointment?` — ${appointment}`:""} 🎉
+        <div className="sw-in" style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:toast.color,color:"#fff",padding:"14px 22px",borderRadius:14,fontWeight:700,fontSize:15,boxShadow:"0 12px 30px rgba(0,0,0,.4)",zIndex:50,maxWidth:"calc(100% - 32px)"}}>
+          {toast.text}
         </div>
       )}
     </div>
+  );
+}
+
+// ================== B2B: INSTALLER CONSOLE ==================
+function Console(p){
+  const { company,companyId,pickCompany,segFilter,setSegFilter,kpi,lead,leadId,pickLead,visibleLeads,messages,started,typing,pb,sMeta,
+    start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal } = p;
+  const brief=lead&&briefs[lead.id];
+  const maxFunnel=Math.max(1,...kpi.funnel.map(f=>f.n));
+  const coldCount=visibleLeads.filter(l=>l.status==="Cold").length;
+
+  return (
+    <>
+      {/* Toolbar */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+        <div style={{display:"flex",alignItems:"center",gap:9,flexWrap:"wrap"}}>
+          <span style={label}>Installer</span>
+          <select value={companyId} onChange={e=>pickCompany(e.target.value)}
+            style={{background:C.panel2,color:C.text,border:`1px solid ${C.line}`,borderRadius:9,padding:"7px 10px",fontSize:13,fontWeight:600,outline:"none"}}>
+            {COMPANIES.map(c=><option key={c.id} value={c.id}>{c.name} — {c.city}</option>)}
+          </select>
+          <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:11.5,color:"#7BE0A6"}}>
+            <span style={{width:7,height:7,borderRadius:999,background:C.green,boxShadow:`0 0 7px ${C.green}`}}/> CRM {company.api}
+          </span>
+        </div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {[["All","All leads"],["Residential","🏠 Homeowners · B2C"],["Commercial","🏢 Businesses · B2B"]].map(([k,t])=>{
+            const on=segFilter===k;
+            return <button key={k} onClick={()=>setSegFilter(k)} style={{fontSize:12,fontWeight:700,cursor:"pointer",padding:"6px 12px",borderRadius:999,
+              background:on?C.gold:C.panel,color:on?C.night:C.sub,border:`1px solid ${on?C.gold:C.line}`}}>{t}</button>;
+          })}
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div className="sw-kpi" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:12}}>
+        {[
+          {k:"Dormant pipeline",v:eur(kpi.pipeline),sub:`${kpi.dormant} leads you already paid for`},
+          {k:"Reply rate",v:`${kpi.replyRate}%`,sub:`${kpi.replied} of ${kpi.contacted} contacted re-engaged`},
+          {k:"Appointments booked",v:String(kpi.booked),sub:`≈ ${eur(kpi.adSaved)} ad spend avoided`,hot:true},
+          {k:"Expected revenue recovered",v:eur(kpi.revenue),sub:`at ${Math.round(ASSUME.closeRate*100)}% advisor close rate`,hot:true},
+        ].map(s=>(
+          <div key={s.k} style={{background:C.panel,border:`1px solid ${C.line}`,borderRadius:14,padding:"13px 14px"}}>
+            <div style={{fontSize:s.v.length>9?20:24,fontWeight:800,color:s.hot?C.gold:C.text,transition:"all .3s"}}>{s.v}</div>
+            <div style={{fontSize:12,color:C.text,fontWeight:600,marginTop:2}}>{s.k}</div>
+            <div style={{fontSize:10.5,color:C.sub,marginTop:1}}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Funnel + campaign */}
+      <div style={{...panel,padding:14,marginBottom:14,display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+        <div style={{flex:"1 1 420px",display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+          {kpi.funnel.map((f,i)=>(
+            <div key={f.s}>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:11.5,marginBottom:5}}>
+                <span style={{color:C.sub,fontWeight:700}}>{i>0?"→ ":""}{f.s}</span><span style={{fontWeight:800,color:STATUS_COLOR[f.s]}}>{f.n}</span>
+              </div>
+              <div style={{height:8,background:C.night,borderRadius:99,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${100*f.n/maxFunnel}%`,background:STATUS_COLOR[f.s],borderRadius:99,transition:"width .5s ease"}}/>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+          <button onClick={runCampaign} disabled={campaign}
+            style={{background:campaign?C.panel2:C.gold,color:campaign?C.sub:C.night,border:"none",borderRadius:11,padding:"10px 16px",fontWeight:800,fontSize:13.5,cursor:campaign?"default":"pointer",whiteSpace:"nowrap"}}>
+            {campaign?"Campaign running…":`🚀 Reactivate all cold leads (${coldCount})`}
+          </button>
+          <span style={{fontSize:10.5,color:C.sub}}>Each lead gets its own playbook · replies simulated in demo</span>
+        </div>
+      </div>
+
+      <div className="sw-grid" style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 380px",gap:18,alignItems:"start"}}>
+        {/* LEFT — CRM */}
+        <div style={panel}>
+          {lead&&(
+            <div style={{background:`linear-gradient(180deg,${C.panel2},${C.panel})`,
+              border:`1.5px solid ${lead.status==="Booked"?C.green:lead.status==="Cold"?C.line:C.gold}`,
+              borderRadius:14,padding:16,marginBottom:14,
+              boxShadow:lead.status==="Booked"?`0 0 24px ${C.green}44`:lead.status!=="Cold"?`0 0 20px ${C.gold}22`:"none",transition:"all .45s ease"}}>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{width:44,height:44,borderRadius:999,background:"#2A3A5C",display:"grid",placeItems:"center",fontWeight:700,fontSize:13,color:C.goldSoft,flexShrink:0}}>
+                  {lead.seg==="Commercial"?"🏢":initials(lead.name)}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{fontWeight:700,fontSize:15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{lead.name}</div>
+                    <SegBadge seg={lead.seg}/>
+                  </div>
+                  <div style={{fontSize:12,color:C.sub}}>{lead.kw} kW · quoted {eur(lead.quote)} · {lead.days}d silent · via {lead.src}</div>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:12,fontSize:12}}>
+                <div style={{background:C.night,borderRadius:9,padding:"8px 10px"}}>
+                  <div style={{color:C.sub,fontSize:10.5}}>STALLED ON</div><div style={{fontWeight:600}}>{lead.lost}</div>
+                </div>
+                <div style={{background:C.night,borderRadius:9,padding:"8px 10px"}}>
+                  <div style={{color:C.sub,fontSize:10.5}}>{lead.dm?"DECISION-MAKER":"PLAYBOOK FOCUS"}</div>
+                  <div style={{fontWeight:600}}>{lead.dm||pb.focus}</div>
+                </div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginTop:12,flexWrap:"wrap"}}>
+                <span style={{fontSize:12,fontWeight:700,color:sMeta.color,background:sMeta.bg,padding:"5px 11px",borderRadius:999,transition:"all .4s"}}>
+                  {lead.status==="Booked"?"✅ ":""}{sMeta.label}
+                </span>
+                {lead.appointment&&(
+                  <span style={{fontSize:12,fontWeight:700,color:"#BBF7D0",background:"#0F3D22",padding:"5px 11px",borderRadius:999}}>📅 {lead.appointment}</span>
+                )}
+                <span style={{fontSize:11.5,fontWeight:700,color:pb.color}}>{pb.icon} {pb.label}</span>
+                <button onClick={()=>openPortal(lead.id)} style={{marginLeft:"auto",fontSize:11.5,fontWeight:700,color:C.text,background:"transparent",border:`1px solid ${C.line}`,borderRadius:999,padding:"5px 10px",cursor:"pointer"}}>
+                  View customer page ↗
+                </button>
+              </div>
+            </div>
+          )}
+
+          {brief&&(
+            <div className="sw-in" style={{background:"#0E2A1C",border:`1px solid ${C.green}66`,borderRadius:14,padding:14,marginBottom:14}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
+                <div style={{fontWeight:800,fontSize:13.5}}>📋 Advisor handoff brief</div>
+                <span style={{fontSize:10.5,color:"#9FD0FF",fontWeight:700}}>{brief==="loading"?"Writing…":`${brief.ai?"Written by Claude":"Auto-generated"} · synced to CRM`}</span>
+              </div>
+              {brief==="loading" ? <span className="sw-dots"><i/><i/><i/></span> : (
+                <div style={{fontSize:12.5,lineHeight:1.5}}>
+                  <div style={{marginBottom:8}}>{brief.summary}</div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+                    <span style={{fontSize:11,fontWeight:800,color:C.night,background:brief.interest==="high"?"#7BE0A6":C.goldSoft,padding:"2px 8px",borderRadius:999}}>Interest: {brief.interest}</span>
+                    {(brief.objections||[]).map(o=><span key={o} style={{fontSize:11,fontWeight:700,color:"#FCA5A5",border:"1px solid #FCA5A555",padding:"2px 8px",borderRadius:999}}>⚠ {o}</span>)}
+                  </div>
+                  <ul style={{margin:"0 0 8px",paddingLeft:18,color:"#D1FAE5"}}>{(brief.talking_points||[]).map(t=><li key={t}>{t}</li>)}</ul>
+                  <div style={{color:C.goldSoft}}><b>Next step:</b> {brief.next_step}</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{...label,marginBottom:8}}>Leads — {company.name} · click one to work it</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:300,overflowY:"auto",paddingRight:2}}>
+            {visibleLeads.map(l=>{
+              const active=l.id===leadId;
+              return (
+                <button key={l.id} onClick={()=>pickLead(l.id)}
+                  style={{textAlign:"left",display:"flex",alignItems:"center",gap:11,background:active?C.panel2:C.night,
+                    border:`1px solid ${active?C.gold:C.line}`,borderRadius:11,padding:"10px 12px",cursor:"pointer",width:"100%"}}>
+                  <div style={{width:30,height:30,borderRadius:999,background:"#243352",display:"grid",placeItems:"center",fontSize:14,flexShrink:0}}>
+                    {PLAYBOOKS[l.seg].icon}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <span style={{fontSize:13,fontWeight:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{l.name}</span>
+                      <SegBadge seg={l.seg} small/>
+                    </div>
+                    <div style={{fontSize:11,color:C.sub}}>quoted {eur(l.quote)} · {l.days}d ago · {l.lost.toLowerCase()}</div>
+                  </div>
+                  <span style={{fontSize:11,fontWeight:700,flexShrink:0,color:STATUS_COLOR[l.status]}}>
+                    {l.status==="Booked"?"✅ ":""}{l.status}
+                  </span>
+                </button>
+              );
+            })}
+            {!visibleLeads.length&&<div style={{fontSize:12,color:C.sub,padding:10}}>No leads in this segment for {company.name}.</div>}
+          </div>
+        </div>
+
+        {/* RIGHT — WhatsApp */}
+        <div style={{background:"#000",borderRadius:26,padding:8,boxShadow:"0 20px 50px rgba(0,0,0,.5)"}}>
+          <div style={{background:C.waWall,borderRadius:20,overflow:"hidden",display:"flex",flexDirection:"column",height:640}}>
+            <div style={{background:C.waHeader,color:"#fff",padding:"12px 14px",display:"flex",alignItems:"center",gap:11}}>
+              <div style={{width:38,height:38,borderRadius:999,background:"#25D366",display:"grid",placeItems:"center",fontWeight:700,color:"#075E54",fontSize:13}}>
+                {lead&&(lead.seg==="Commercial"?"🏢":initials(lead.name))}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:600,fontSize:15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{lead?(lead.dm?`${first(lead.dm)} · ${lead.name}`:lead.name):"—"}</div>
+                <div style={{fontSize:11.5,opacity:.85}}>{typing?"Lina is typing…":"online"}</div>
+              </div>
+              <PhoneI size={18} color="#fff"/>
+            </div>
+
+            <div ref={scrollRef} style={{flex:1,overflowY:"auto",padding:"14px 12px",display:"flex",flexDirection:"column",gap:8}}>
+              {!started&&(
+                <div style={{margin:"auto",textAlign:"center",color:"#667",maxWidth:260}}>
+                  {lead&&lead.status==="Booked" ? (
+                    <div style={{fontSize:13,lineHeight:1.5}}>✅ {lead.name} booked <b>{lead.appointment}</b> {lead.via||""}. No chat needed.</div>
+                  ) : (
+                    <>
+                      <div style={{fontSize:13,marginBottom:14,lineHeight:1.5}}>
+                        {lead?<>This {lead.seg==="Commercial"?"business":"homeowner"} lead went cold {lead.days} days ago after a {eur(lead.quote)} quote. SolarWake will use the <b>{pb.label.toLowerCase()}</b>.</>:"Select a lead to begin."}
+                      </div>
+                      {lead&&(
+                        <button onClick={start} style={{display:"inline-flex",alignItems:"center",gap:8,background:C.waHeader,color:"#fff",border:"none",padding:"11px 20px",borderRadius:999,fontWeight:700,fontSize:14,cursor:"pointer"}}>▶ Start reactivation</button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+              {messages.map((m,i)=>{
+                const mine=m.role==="customer";
+                return (
+                  <div key={i} className="sw-in" style={{alignSelf:mine?"flex-end":"flex-start",maxWidth:"84%"}}>
+                    <div style={{background:mine?C.waOut:C.waIn,color:"#111",padding:"7px 10px 5px",borderRadius:9,
+                      borderTopRightRadius:mine?2:9,borderTopLeftRadius:mine?9:2,boxShadow:"0 1px 1px rgba(0,0,0,.12)",fontSize:14,lineHeight:1.4}}>
+                      <ChatText text={m.text} onPortal={openPortal}/>
+                      <span style={{float:"right",fontSize:10,color:"#8a9",marginLeft:8,marginTop:4}}>{m.time}{mine?" ✓✓":""}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              {typing&&(
+                <div style={{alignSelf:"flex-start",background:C.waIn,padding:"10px 14px",borderRadius:9,borderTopLeftRadius:2,boxShadow:"0 1px 1px rgba(0,0,0,.12)"}}>
+                  <span className="sw-dots"><i/><i/><i/></span>
+                </div>
+              )}
+            </div>
+
+            {started&&lead.status!=="Booked"&&(
+              <div style={{display:"flex",gap:6,overflowX:"auto",padding:"8px 10px 0"}}>
+                {pb.quick.map(q=>(
+                  <button key={q} onClick={()=>send(q)} disabled={typing}
+                    style={{whiteSpace:"nowrap",fontSize:12,background:"#fff",color:C.waHeader,border:`1px solid ${C.waHeader}44`,padding:"6px 11px",borderRadius:999,cursor:typing?"default":"pointer",opacity:typing?.5:1,fontWeight:600}}>{q}</button>
+                ))}
+              </div>
+            )}
+
+            <div style={{display:"flex",alignItems:"center",gap:8,padding:10,background:"#F0F0F0"}}>
+              <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send(input)}
+                disabled={!started||typing||lead.status==="Booked"} placeholder={started?`Reply as the ${lead.seg==="Commercial"?"business":"homeowner"}…`:"Press start first"}
+                style={{flex:1,border:"none",borderRadius:999,padding:"10px 14px",fontSize:14,outline:"none",background:"#fff",color:"#111"}}/>
+              <button onClick={()=>send(input)} disabled={!started||typing}
+                style={{width:42,height:42,borderRadius:999,background:C.waHeader,border:"none",display:"grid",placeItems:"center",cursor:"pointer",flexShrink:0}}>
+                <SendI size={18} color="#fff"/>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Activity + ROI */}
+      <div className="sw-2col" style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)",gap:18,marginTop:18}}>
+        <div style={panel}>
+          <div style={{...label,marginBottom:10}}>Live activity</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:290,overflowY:"auto"}}>
+            {activity.map((a,i)=>(
+              <div key={activity.length-i} className="sw-in" style={{display:"flex",gap:10,fontSize:12.5,lineHeight:1.4,padding:"6px 8px",borderRadius:8,
+                background:a.kind==="win"?"#0F3D22":a.kind==="in"?"#1E2A44":"transparent"}}>
+                <span style={{color:C.sub,fontVariantNumeric:"tabular-nums",flexShrink:0}}>{a.t}</span>
+                <span style={{color:a.kind==="win"?"#BBF7D0":C.text}}>{a.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <ROICalc/>
+      </div>
+    </>
+  );
+}
+
+function Slider({label:l, value, set, min, max, step=1, fmt, dark=true}){
+  return (
+    <label style={{display:"block",marginBottom:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",fontSize:12.5,marginBottom:4}}>
+        <span style={{color:dark?C.sub:C.pSub}}>{l}</span><b style={{color:dark?C.text:C.pInk}}>{fmt?fmt(value):value}</b>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={e=>set(Number(e.target.value))}/>
+    </label>
+  );
+}
+
+// Sales tool for pitching SolarWake to an installer: "what is your dead pipeline worth?"
+function ROICalc(){
+  const [n,setN]=useState(400), [avg,setAvg]=useState(16000), [book,setBook]=useState(10), [close,setClose]=useState(30);
+  const bookings=Math.round(n*book/100), installs=Math.round(bookings*close/100);
+  return (
+    <div style={panel}>
+      <div style={{...label,marginBottom:2}}>ROI calculator · for installers</div>
+      <div style={{fontSize:16,fontWeight:800,marginBottom:12}}>What is your dead pipeline worth?</div>
+      <Slider label="Dormant quotes in your CRM" value={n} set={setN} min={50} max={3000} step={50}/>
+      <Slider label="Average quote value" value={avg} set={setAvg} min={6000} max={80000} step={1000} fmt={eur}/>
+      <Slider label="Reactivated → booked call" value={book} set={setBook} min={2} max={25} fmt={v=>v+"%"}/>
+      <Slider label="Booked call → signed install" value={close} set={setClose} min={10} max={60} fmt={v=>v+"%"}/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginTop:4}}>
+        {[["Booked calls",bookings],["Signed installs",installs],["Recovered revenue",eur(installs*avg)]].map(([k,v],i)=>(
+          <div key={k} style={{background:C.panel2,borderRadius:11,padding:"10px 11px"}}>
+            <div style={{fontSize:i===2?17:22,fontWeight:800,color:i===2?C.gold:C.text}}>{v}</div>
+            <div style={{fontSize:11,color:C.sub}}>{k}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{fontSize:11,color:C.sub,marginTop:10}}>
+        Replacing those calls with paid ads would cost ≈ <b style={{color:C.text}}>{eur(bookings*ASSUME.cpa.Residential)}</b> (at {eur(ASSUME.cpa.Residential)} per booked appointment). Rates are illustrative assumptions — plug in the installer's own numbers.
+      </div>
+    </div>
+  );
+}
+
+// ================== B2C: CUSTOMER PAGE ==================
+// The white-labelled page the agent links to on WhatsApp. Business leads get a business-case variant.
+function Portal({ lead, company, companyLeads, pickLead, pickCompany, onBook, backToConsole }){
+  if(!lead) return <div style={panel}>Select a lead first.</div>;
+  const co=coOf(lead), biz=lead.seg==="Commercial", brand=co.brand;
+  const [bill,setBill]=useState(lead.bill);
+  const [battery,setBattery]=useState(false);
+  const [dayUse,setDayUse]=useState(70);
+  const [term,setTerm]=useState(biz?10:15);
+  const [slot,setSlot]=useState(null);
+  const m=solarModel(lead, co, { bill, battery, dayUse:dayUse/100 });
+  const e=biz?ECON.Commercial:ECON.Residential;
+  const pay=monthly(m.cost, e.rate, term), save=m.savings/12, netMonthly=pay-save;
+  const days=useMemo(()=>nextWeekdays(5),[]);
+  const times=biz?["09:00","10:30","14:00","16:00"]:["09:00","11:30","16:00","18:00"];
+  const booked=lead.status==="Booked";
+
+  const card={ background:"#fff", border:`1px solid ${C.pLine}`, borderRadius:14, padding:16 };
+  const stat=(k,v,s)=>(
+    <div style={{...card,padding:"13px 14px"}}>
+      <div style={{fontSize:22,fontWeight:800,color:C.pInk}}>{v}</div>
+      <div style={{fontSize:12,fontWeight:700,color:C.pInk}}>{k}</div>
+      {s&&<div style={{fontSize:11,color:C.pSub,marginTop:1}}>{s}</div>}
+    </div>
+  );
+
+  return (
+    <>
+      <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:12}}>
+        <span style={label}>Preview page for</span>
+        <select value={lead.co} onChange={e=>pickCompany(e.target.value)}
+          style={{background:C.panel2,color:C.text,border:`1px solid ${C.line}`,borderRadius:9,padding:"7px 10px",fontSize:13,fontWeight:600,outline:"none"}}>
+          {COMPANIES.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select value={lead.id} onChange={e=>pickLead(e.target.value)}
+          style={{background:C.panel2,color:C.text,border:`1px solid ${C.line}`,borderRadius:9,padding:"7px 10px",fontSize:13,fontWeight:600,outline:"none"}}>
+          {companyLeads.map(l=><option key={l.id} value={l.id}>{PLAYBOOKS[l.seg].icon} {l.name}</option>)}
+        </select>
+        <span style={{fontSize:12,color:C.sub}}>White-labelled for each installer · sent by the agent on WhatsApp</span>
+      </div>
+
+      {/* Browser frame */}
+      <div className="sw-portal" style={{"--brand":brand,background:"#fff",borderRadius:16,overflow:"hidden",boxShadow:"0 20px 50px rgba(0,0,0,.5)"}}>
+        <div style={{background:"#E9ECF1",padding:"9px 12px",display:"flex",alignItems:"center",gap:10}}>
+          <span style={{display:"flex",gap:5}}>{["#FF5F57","#FEBC2E","#28C840"].map(c=><i key={c} style={{width:10,height:10,borderRadius:99,background:c,display:"block"}}/>)}</span>
+          <div style={{flex:1,background:"#fff",borderRadius:8,padding:"5px 10px",fontSize:12,color:"#475569",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>🔒 {portalUrl(lead,co)}</div>
+        </div>
+
+        <div style={{background:C.pBg,color:C.pInk,padding:"0 0 22px"}}>
+          {/* Installer header */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 22px",background:"#fff",borderBottom:`1px solid ${C.pLine}`,flexWrap:"wrap",gap:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:34,height:34,borderRadius:9,background:brand,display:"grid",placeItems:"center",color:"#fff",fontSize:17}}>☀</div>
+              <div><div style={{fontWeight:800}}>{co.name}{biz?" · Business Energy":""}</div><div style={{fontSize:11,color:C.pSub}}>{co.city} · certified installer</div></div>
+            </div>
+            <div style={{fontSize:12,color:C.pSub}}>Your advisor: <b style={{color:C.pInk}}>Lina</b> · 💬 WhatsApp</div>
+          </div>
+
+          {/* Hero */}
+          <div style={{padding:"22px 22px 6px"}}>
+            <div style={{display:"inline-block",fontSize:11.5,fontWeight:800,color:brand,background:`${brand}18`,padding:"4px 10px",borderRadius:999,marginBottom:10}}>
+              ⏳ Your quoted price is held for {ECON.priceLockDays} more days
+            </div>
+            <div style={{fontSize:26,fontWeight:800,letterSpacing:-0.5,lineHeight:1.2}}>
+              {biz?`The solar business case for ${lead.name}`:`${first(lead.name)}, your solar plan is still reserved.`}
+            </div>
+            <div style={{fontSize:14,color:C.pSub,marginTop:6}}>
+              {lead.kw} kW rooftop system · {lead.city} · quoted {eur(lead.quote)}{biz&&lead.dm?` · prepared for ${lead.dm}`:""}
+            </div>
+          </div>
+
+          <div className="sw-pgrid" style={{display:"grid",gridTemplateColumns:"320px minmax(0,1fr)",gap:16,padding:"16px 22px 0"}}>
+            {/* Inputs */}
+            <div style={card}>
+              <div style={{fontWeight:800,marginBottom:12}}>{biz?"Your operation":"Your home"}</div>
+              <Slider dark={false} label={biz?"Monthly electricity cost":"Monthly electricity bill"} value={bill} set={setBill}
+                min={biz?300:50} max={biz?8000:350} step={biz?50:5} fmt={eur}/>
+              {biz ? (
+                <Slider dark={false} label="Power used during daylight" value={dayUse} set={setDayUse} min={40} max={90} fmt={v=>v+"%"}/>
+              ) : (
+                <label style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,fontSize:13,padding:"10px 12px",background:C.pBg,borderRadius:10,cursor:"pointer",marginBottom:12}}>
+                  <span><b>Add a home battery</b><br/><span style={{fontSize:11.5,color:C.pSub}}>+{eur(ECON.Residential.battery)} · use ~60% of your own power</span></span>
+                  <input type="checkbox" checked={battery} onChange={e=>setBattery(e.target.checked)} style={{width:18,height:18,accentColor:brand}}/>
+                </label>
+              )}
+              <div style={{fontSize:12.5,color:C.pSub,marginBottom:6}}>Financing term</div>
+              <div style={{display:"flex",gap:6}}>
+                {[10,15,20].map(t=>(
+                  <button key={t} onClick={()=>setTerm(t)} style={{flex:1,padding:"7px 0",borderRadius:9,fontWeight:700,fontSize:13,cursor:"pointer",
+                    border:`1.5px solid ${term===t?brand:C.pLine}`,background:term===t?`${brand}14`:"#fff",color:C.pInk}}>{t} yrs</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Results */}
+            <div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
+                {stat("Saved per year",eur(m.savings),`≈ ${eur(m.savings/12)} per month`)}
+                {stat("Pays for itself in",fmtYears(m.payback),`on ${eur(m.cost)} total`)}
+                {stat("20-year net gain",eur(m.net20),"after paying for the system")}
+                {biz ? stat("CO₂ avoided / year",`${m.co2.toFixed(1)} t`,"ready for your ESG report")
+                     : stat("Of your bill covered",`${Math.round(m.billCut*100)}%`,`${m.co2.toFixed(1)} t CO₂ avoided per year`)}
+              </div>
+              <div style={{...card,marginTop:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8,fontSize:13}}>
+                  <span>Financed over {term} yrs at {(e.rate*100).toFixed(1)}%: <b>{eur(pay)}/mo</b></span>
+                  <span>Savings: <b style={{color:"#15803D"}}>−{eur(save)}/mo</b></span>
+                </div>
+                <div style={{marginTop:8,fontSize:14,fontWeight:800,color:netMonthly<=0?"#15803D":C.pInk}}>
+                  {netMonthly<=0?`✅ Cash-positive from month one (+${eur(-netMonthly)}/mo)`:`Effective cost while financing: ${eur(netMonthly)}/mo — then ${eur(save)}/mo saved, free and clear`}
+                </div>
+                {biz&&<div style={{marginTop:6,fontSize:12.5,color:C.pSub}}>Linear depreciation: ≈ <b style={{color:C.pInk}}>{eur(lead.quote/20)}/yr</b> over 20 years (confirm with your tax advisor).</div>}
+              </div>
+            </div>
+          </div>
+
+          {/* Booking */}
+          <div style={{...card,margin:"16px 22px 0"}}>
+            {booked ? (
+              <div style={{textAlign:"center",padding:"10px 0"}}>
+                <div style={{fontSize:30}}>🎉</div>
+                <div style={{fontSize:18,fontWeight:800}}>You're booked: {lead.appointment}</div>
+                <div style={{fontSize:13,color:C.pSub,marginTop:4}}>A {biz?"commercial ":""}advisor from {co.name} will call you. Confirmation sent on WhatsApp.</div>
+                <button onClick={backToConsole} style={{marginTop:12,fontSize:12,fontWeight:700,background:C.pInk,color:"#fff",border:"none",borderRadius:999,padding:"8px 14px",cursor:"pointer"}}>See it land in the installer console →</button>
+              </div>
+            ) : (
+              <>
+                <div style={{fontWeight:800,marginBottom:2}}>{biz?"Book a 20-minute call with our commercial advisor":"Book your free 15-minute advisor call"}</div>
+                <div style={{fontSize:12.5,color:C.pSub,marginBottom:12}}>{biz?"Bring your CFO or decision-maker — we'll walk through the numbers together.":"No obligation. We'll go through your numbers and answer every question."}</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10}}>
+                  {days.map(d=>(
+                    <div key={d.toISOString()}>
+                      <div style={{fontSize:12,fontWeight:800,marginBottom:6}}>{dayLabel(d)}</div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                        {times.map(t=>{
+                          const v=`${dayLabel(d)} at ${t}`, on=slot===v;
+                          return <button key={t} onClick={()=>setSlot(v)} style={{fontSize:12,fontWeight:700,padding:"5px 8px",borderRadius:8,cursor:"pointer",
+                            border:`1.5px solid ${on?brand:C.pLine}`,background:on?brand:"#fff",color:on?"#fff":C.pInk}}>{t}</button>;
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={()=>slot&&onBook(lead,slot)} disabled={!slot}
+                  style={{marginTop:14,width:"100%",padding:"12px 0",borderRadius:11,border:"none",fontWeight:800,fontSize:15,cursor:slot?"pointer":"default",
+                    background:slot?brand:"#CBD5E1",color:"#fff"}}>
+                  {slot?`Confirm ${slot}`:"Pick a time above"}
+                </button>
+              </>
+            )}
+          </div>
+
+          <div style={{fontSize:11,color:C.pSub,padding:"14px 22px 0",lineHeight:1.5}}>
+            Estimates use {ECON.yieldKwh[co.country]} kWh/kWp per year, {Math.round(e.price*100)} ct/kWh grid price rising {ECON.inflation*100}%/yr, {Math.round(e.feedIn*100)} ct/kWh feed-in and {ECON.degradation*100}%/yr panel degradation. Example financing rate. Your advisor will confirm exact figures.
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 

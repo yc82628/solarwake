@@ -1,7 +1,21 @@
 # SolarWake — live demo site
 
-An AI lead-reactivation agent. The WhatsApp conversation is generated **live by Anthropic's Claude API**.
-No external CRM — leads live in the app. A small serverless function keeps your API key off the browser.
+**AI revenue recovery for solar installers.** Installers pay for leads, send quotes, and most go quiet.
+SolarWake works that dead pipeline over WhatsApp and books advisor calls, with no new ad spend.
+The conversation is generated **live by Anthropic's Claude API**.
+
+The app has two sides:
+
+| Tab | Who it's for | What it shows |
+|---|---|---|
+| **Installer Console** (B2B) | The solar company (SolarWake's paying customer) | Pipeline KPIs (dormant €, reply rate, bookings, revenue recovered, ad spend avoided), funnel, one-click campaign across all cold leads, WhatsApp agent, AI advisor handoff brief, live activity feed, ROI calculator for the sales pitch |
+| **Customer Page** (B2C) | The installer's lead (homeowner or business) | White-labelled page the agent links to: personal savings & payback, battery option, financing vs. savings, price-lock deadline, self-serve booking |
+
+Every lead is handled by its own **playbook**:
+- 🏠 **Homeowner (B2C):** friendly tone, bill savings, financing, price-lock deadline.
+- 🏢 **Business (B2B):** professional tone, ROI and payback, depreciation, CO₂ for ESG reporting, books the call with the CFO/owner.
+
+No external CRM: leads live in the app. A small serverless function keeps your API key off the browser.
 
 ```
 index.html      the whole app (React via CDN, no build step)
@@ -48,16 +62,22 @@ In the Vercel project -> Settings -> Domains -> add a domain you own. The free
 - **Demo Mode toggle (top-right):** switch to *Demo Mode (scripted)* for a rehearsed, no-network run
   that always books. Use *Live AI* to show the real Claude API. If a live call ever fails mid-demo,
   the app auto-falls back to the script so it never freezes.
-- Flow: pick a company -> click a dormant lead -> **Start reactivation** -> tap the grey quick-reply
-  chips (faster than typing) -> watch it book -> the lead flips to **Booked** and the stats update.
+- Suggested 3-minute flow:
+  1. **Console:** point at the KPI row. "€X of pipeline the installer already paid for."
+  2. Click **Reactivate all cold leads**. Openers go out and replies come in on the activity feed (replies are simulated).
+  3. Open a homeowner lead -> **Start reactivation** -> tap the quick-reply chips. The agent shares the customer-page link.
+  4. Click the link -> **Customer Page**: drag the bill slider, toggle the battery, pick a slot, confirm.
+  5. Back in the Console: the lead is **Booked**, the KPIs update and an **advisor handoff brief** appears.
+  6. Switch to **🏢 Businesses · B2B** and repeat with a commercial lead to show the CFO playbook.
+  7. Finish on the **ROI calculator** with the installer's own numbers.
 
 ## Change the model
 In `index.html`, edit one line:
 ```js
 const MODEL = "claude-sonnet-5";   // best conversation
-// or "claude-haiku-4-5-20251001"  // cheaper & faster
+// or "claude-haiku-5-5"           // cheaper & faster
 ```
-Verify the current model names at https://docs.claude.com if a call returns a model error.
+Also add the new name to `ALLOWED_MODELS` in `api/chat.js` (the proxy only forwards allow-listed models).
 
 ## Cost
 Each reply is a short Claude call (a few cents at most on Sonnet, less on Haiku). A whole demo
