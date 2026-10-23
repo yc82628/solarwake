@@ -1,0 +1,6 @@
+{
+  "name": "solarwake-live",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SolarWake — AI lead reactivation agent, powered by Anthropic's Claude API."
+}
