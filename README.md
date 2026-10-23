@@ -1,15 +1,21 @@
 # SolarWake — live demo site
 
-**AI revenue recovery for solar installers.** Installers pay for leads, send quotes, and most go quiet.
-SolarWake works that dead pipeline over WhatsApp or email and books advisor calls, with no new ad spend.
-The conversation is generated **live by Anthropic's Claude API**.
+**AI revenue recovery for solar installers: quotes that went quiet, and invoices that haven't been paid.**
+SolarWake follows up over email or WhatsApp, books advisor calls, chases payments politely, and keeps a
+ledger your accountant can filter by any period. Messages are generated **live by Anthropic's Claude API**.
 
-The app has two sides:
+The site opens on a public **landing page** (light theme, EN/DE, accessible: skip link, focus outlines,
+WCAG-contrast buttons, reduced-motion support). **Try the live demo** / **Sign in** opens the app (`/#app`):
 
 | Tab | Who it's for | What it shows |
 |---|---|---|
-| **Installer Console** (B2B) | The solar company (SolarWake's paying customer) | Pipeline KPIs (dormant €, reply rate, bookings, revenue recovered, ad spend avoided), funnel, one-click campaign across all cold leads, email/WhatsApp agent, AI advisor handoff brief, live activity feed, ROI calculator for the sales pitch |
-| **Customer Page** (B2C) | The installer's lead (homeowner or business) | White-labelled page the agent links to: personal savings & payback, battery option, financing vs. savings, price-lock deadline, self-serve booking |
+| **Leads** (B2B) | The solar company (SolarWake's paying customer) | Pipeline KPIs, funnel, one-click campaign across cold leads, email/WhatsApp agent, AI advisor handoff brief, live activity feed, ROI calculator |
+| **Invoices** (B2B) | The installer's back office | Outstanding / overdue / days-to-pay KPIs, unpaid-by-age chart, a reminder schedule that gets firmer (heads-up → due today → polite → firm → final notice, each step can be switched off), AI-written reminders sent as real emails, AI handling of replies ("already paid", instalments, problem with the installation, promised date) which pauses reminders |
+| **Transactions** | The installer's accountant | Every payment in and out (customer payments, invoices, supplier bills, refunds) with a calendar range picker, quick periods, **calendar settings** (financial-year start, week start, date format), filters (installer, direction, type, search), a **missing documents** filter with "request" button, and CSV export |
+| **Customer Page** (B2C) | The installer's lead | Personal savings & payback, battery option, financing, price-lock deadline, self-serve booking |
+| **Pay Page** (B2C) | The installer's customer | Invoice details, pay by card / bank transfer / 3 instalments (homeowners), report a problem. Test payments only; no money moves |
+
+Links in real emails open the right page directly: `/?p=C-1006` (quote page) and `/?i=INV-2026-0102` (pay page).
 
 Every lead is handled by its own **playbook**:
 - 🏠 **Homeowner (B2C):** friendly tone, bill savings, financing, price-lock deadline.

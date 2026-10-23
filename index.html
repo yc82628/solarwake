@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>SolarWake — AI Revenue Recovery for Solar Installers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
@@ -15,12 +18,34 @@
   @keyframes swb{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-4px);opacity:1}}
   @keyframes swin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
   .sw-in{animation:swin .35s ease}
-  @media(max-width:900px){.sw-grid,.sw-2col,.sw-pgrid{grid-template-columns:1fr !important}.sw-kpi{grid-template-columns:repeat(2,1fr) !important}}
+  @media(max-width:900px){.sw-grid,.sw-2col,.sw-pgrid{grid-template-columns:minmax(0,1fr) !important}.sw-kpi{grid-template-columns:repeat(2,1fr) !important}}
   ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:#33415c;border-radius:9px}
   select option{background:#1B2740;color:#E7ECF5}
   input::placeholder{color:#8a94a6}
   input[type=range]{width:100%;accent-color:#F5B301}
   .sw-portal input[type=range]{accent-color:var(--brand)}
+  /* Landing page (light) */
+  .lp{font-family:Inter,'Segoe UI',system-ui,-apple-system,sans-serif;color:#111827;background:#fff;min-height:100vh}
+  .lp a{color:inherit}
+  .lp :focus-visible,.sw-app :focus-visible{outline:3px solid #2563EB;outline-offset:2px}
+  .lp-skip{position:absolute;left:-999px;top:8px;background:#111827;color:#fff !important;padding:8px 12px;border-radius:8px;z-index:100}
+  .lp-skip:focus{left:8px}
+  .lp-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .lp-nav a{text-decoration:none;font-size:14.5px;color:#374151}
+  .lp-nav .lp-links a:hover{color:#C2410C}
+  .lp-btn{display:inline-flex;align-items:center;gap:8px;background:#C2410C;color:#fff;border:none;border-radius:999px;padding:14px 24px;font-weight:700;font-size:15.5px;cursor:pointer;font-family:inherit;text-decoration:none}
+  .lp-btn:hover{background:#9A3412}
+  .lp-ghost{display:inline-flex;align-items:center;background:#fff;color:#111827;border:1.5px solid #E5E7EB;border-radius:999px;padding:13px 22px;font-weight:700;font-size:15.5px;text-decoration:none}
+  .lp-ghost:hover{border-color:#C2410C}
+  .lp-soft{background:#FFEDD5;color:#9A3412;border:none;border-radius:10px;padding:9px 14px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit}
+  .lp-soft:hover{background:#FED7AA}
+  .lp-link{background:none;border:none;font:inherit;font-weight:700;font-size:14px;color:#111827;cursor:pointer;padding:6px 4px}
+  .lp-link:hover{color:#C2410C}
+  .lp-fade{background:linear-gradient(90deg,rgba(255,255,255,.94) 0%,rgba(255,255,255,.78) 38%,rgba(255,255,255,0) 64%)}
+  @media(max-width:900px){.lp-3,.lp-4,.lp-cols{grid-template-columns:1fr !important}.lp-links{display:none !important}.lp-fade{background:rgba(255,255,255,.84)}}
+  @media(max-width:520px){.lp-nav .lp-link{display:none}}
+  @media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;scroll-behavior:auto !important}}
+  html{scroll-behavior:smooth}
 </style>
 </head>
 <body>
@@ -253,6 +278,214 @@ function heuristicBrief(lead, co, messages, via){
   };
 }
 
+// ================== BILLING: invoices, payment reminders, transactions ==================
+// Dates are generated relative to today so the demo always looks current. All customers are fictional.
+const today0 = () => { const d=new Date(); d.setHours(0,0,0,0); return d; };
+const daysFrom = n => { const d=today0(); d.setDate(d.getDate()+n); return d; };
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const parseYmd = s => { const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); };
+const daysBetween = (a,b) => Math.round((b-a)/864e5);
+const fmtD = s => parseYmd(s).toLocaleDateString("en-GB",{ day:"numeric", month:"short", year:"numeric" });
+
+// Signed customers who are being invoiced. inv rows: [milestone, share of total, issued N days ago, payment terms in days, paid N days ago | null, method]
+const BILLING = [
+  { co:"SW-001", name:"Anna & Jonas Schneider", seg:"Residential", contact:"Anna Schneider", email:"anna.schneider@example.com", kw:9.5, total:18900,
+    inv:[["Deposit",.3,120,14,110,"Card"],["Installation",.6,40,14,null],["Grid connection",.1,5,14,null]] },
+  { co:"SW-001", name:"Huber Metallbau GmbH", seg:"Commercial", contact:"Accounts payable, Huber Metallbau", email:"accounts.huber@example.com", dm:"Stefan Huber (Managing Director)", po:"PO-55120", kw:120, total:138000,
+    inv:[["Deposit",.3,150,30,125,"SEPA transfer"],["Installation",.6,50,30,null]] },
+  { co:"SW-001", name:"Lukas Wagner", seg:"Residential", contact:"Lukas Wagner", email:"lukas.wagner@example.com", kw:7, total:13400,
+    inv:[["Deposit",.3,200,14,190,"SEPA transfer"],["Installation",.6,170,14,160,"SEPA transfer"],["Grid connection",.1,130,14,100,"Card"]] },
+  { co:"SW-001", name:"Kita Sonnenschein e.V.", seg:"Commercial", contact:"Accounts, Kita Sonnenschein", email:"finance.kita@example.com", dm:"Petra Vogel (Director)", po:"PO-2026-118", kw:30, total:41000,
+    inv:[["Deposit",.3,60,30,45,"SEPA transfer"],["Installation",.6,28,30,null]] },
+  { co:"SW-002", name:"Julia Becker", seg:"Residential", contact:"Julia Becker", email:"julia.becker@example.com", kw:6.5, total:11800,
+    inv:[["Deposit",.3,90,14,80,"Card"],["Installation",.6,75,14,null]] },
+  { co:"SW-002", name:"Spree Office Park GmbH", seg:"Commercial", contact:"Accounts payable, Spree Office Park", email:"ap.spree-office@example.com", dm:"Henrik Lange (CFO)", po:"PO-88412", kw:85, total:96500,
+    inv:[["Deposit",.3,100,30,70,"SEPA transfer"],["Installation",.6,38,30,null]] },
+  { co:"SW-003", name:"Ole Jensen", seg:"Residential", contact:"Ole Jensen", email:"ole.jensen@example.com", kw:8, total:15200,
+    inv:[["Deposit",.3,140,14,128,"SEPA transfer"],["Installation",.6,100,14,95,"SEPA transfer"],["Grid connection",.1,45,14,null]] },
+  { co:"SW-003", name:"Hafen Kühlhaus GmbH", seg:"Commercial", contact:"Accounts payable, Hafen Kühlhaus", email:"ap.hafen-kuehlhaus@example.com", dm:"Birte Claussen (CFO)", po:"PO-7731", kw:140, total:158000,
+    inv:[["Deposit",.3,70,30,41,"SEPA transfer"],["Installation",.6,33,30,null]] },
+  { co:"SW-005", name:"Martina Keller", seg:"Residential", contact:"Martina Keller", email:"martina.keller@example.com", kw:10, total:21000,
+    inv:[["Deposit",.3,25,14,null]] },
+  { co:"SW-005", name:"Seeblick Hotel AG", seg:"Commercial", contact:"Accounts payable, Seeblick Hotel", email:"ap.seeblick-hotel@example.com", dm:"Reto Baumann (CFO)", po:"PO-SB-3390", kw:75, total:84000,
+    inv:[["Deposit",.3,300,30,280,"SEPA transfer"],["Installation",.6,260,30,230,"SEPA transfer"],["Grid connection",.1,200,30,160,"SEPA transfer"]] },
+];
+
+const INITIAL_INVOICES = (()=>{
+  let n=100; const out=[];
+  BILLING.forEach(c=>c.inv.forEach(([milestone,pct,issuedAgo,terms,paidAgo,method])=>{
+    const issued=daysFrom(-issuedAgo); n++;
+    out.push({ id:`INV-${issued.getFullYear()}-${String(n).padStart(4,"0")}`, co:c.co, name:c.name, seg:c.seg, contact:c.contact, email:c.email, dm:c.dm, po:c.po, kw:c.kw,
+      milestone, pct, amount:Math.round(c.total*pct), issued:ymd(issued), due:ymd(daysFrom(terms-issuedAgo)), terms,
+      paid:paidAgo==null?null:ymd(daysFrom(-paidAgo)), method:method||null, flag:null, sent:[] });
+  }));
+  return out;
+})();
+
+const invDays = inv => daysBetween(parseYmd(inv.due), today0()); // > 0 means overdue by that many days
+function invStatus(inv){
+  if(inv.paid) return { key:"paid", label:"Paid", color:"#7BE0A6" };
+  const d=invDays(inv);
+  if(d>0) return { key:"overdue", label:`${d} day${d>1?"s":""} overdue`, color:"#FCA5A5" };
+  if(d>=-7) return { key:"soon", label:d===0?"Due today":`Due in ${-d} day${d<-1?"s":""}`, color:C.goldSoft };
+  return { key:"open", label:`Due in ${-d} days`, color:C.sub };
+}
+
+// The reminder ladder: each step fires `offset` days after the due date (negative = before).
+const LADDER = [
+  { key:"pre",   offset:-3, name:"Friendly heads-up", tone:"friendly: a light heads-up that the invoice is due soon" },
+  { key:"due",   offset:0,  name:"Due today",         tone:"friendly: the invoice is due today" },
+  { key:"r1",    offset:7,  name:"Polite reminder",   tone:"polite: the payment may have slipped through, easy to fix" },
+  { key:"r2",    offset:14, name:"Firm reminder",     tone:"firm but respectful: ask for payment or a date within 7 days" },
+  { key:"final", offset:30, name:"Final notice",      tone:"final notice: clear and serious, pay or contact us within 7 days, still courteous" },
+];
+function ladderStep(inv, steps){
+  if(inv.paid) return null;
+  const d=invDays(inv); let s=null;
+  for(const st of steps) if(st.on&&d>=st.offset) s=st;
+  return s;
+}
+const reminderDue = (inv, steps) => { const st=ladderStep(inv,steps); return !!st && !inv.flag && !inv.sent.some(s=>s.key===st.key); };
+
+const PAY_QUICK = ["I already paid this last week","Can we split it into instalments?","There's a problem with the installation","I'll pay on Friday","Please send me the invoice again"];
+
+function classifyReply(text){
+  const t=text.toLowerCase();
+  if(/already paid|have paid|paid (this|it|last)|transferred|sent the money|überwiesen/.test(t)) return "paid_claim";
+  if(/problem|not working|broken|defect|issue with|complain|damage/.test(t)) return "dispute";
+  if(/split|instal|can't pay|cannot pay|can not pay|tight|budget/.test(t)) return "plan";
+  if(/invoice again|send (me )?(the|a) (invoice|copy)|resend|copy of/.test(t)) return "resend";
+  if(/(on|by|next) (monday|tuesday|wednesday|thursday|friday|week|month)|end of (the )?month|tomorrow|pay (on|by)/.test(t)) return "promise";
+  return "other";
+}
+const INTENT_FLAG = { paid_claim:"Checking payment", plan:"Payment plan offered", dispute:"Disputed: reminders paused", promise:"Payment promised", resend:null, other:null };
+
+const billSign = co => `Kind regards,\nLina\n${co.name} Billing`;
+const billEmail = co => `billing@${co.slug}.solarwake.app`;
+const payUrl = (inv, co) => `${co.slug}.solarwake.app/i/${inv.id}`;
+const billHi = inv => inv.seg==="Commercial" ? "Dear accounts payable team," : `Hi ${first(inv.contact)},`;
+
+function invFacts(inv, co){
+  const d=invDays(inv);
+  return `Invoice ${inv.id}: ${inv.milestone} payment (${Math.round(inv.pct*100)}%) for the ${inv.kw} kW solar installation, amount ${eur(inv.amount)}, issued ${fmtD(inv.issued)}, due ${fmtD(inv.due)} (${d>0?`${d} days overdue`:d===0?"due today":`due in ${-d} days`}).${inv.po?` Customer PO: ${inv.po}.`:""}
+Payment page (card or bank transfer${inv.seg==="Commercial"?"":", or 3 monthly instalments"}): ${payUrl(inv,co)}`;
+}
+
+function billingSystem(inv, co, step){
+  const biz=inv.seg==="Commercial";
+  return `You are SolarWake's accounts-receivable assistant for ${co.name}, writing as "Lina" from the ${co.name} billing team, by email.
+Customer: ${inv.name}, ${biz?`a business. You are writing to their accounts payable team (decision-maker: ${inv.dm})`:"a homeowner"}.
+${invFacts(inv,co)}
+Current reminder stage: ${step?`${step.name}; tone ${step.tone}`:"no reminder due yet; be friendly"}.
+${biz?"B2B: professional and concise; always quote the invoice and PO numbers; offer a statement of account if useful.":"B2C: warm and understanding; you may offer 3 monthly instalments at no extra cost."}
+Rules: never invent amounts, dates, fees or legal consequences, and never threaten. If they say they already paid, thank them and ask for the payment date and bank reference. If they can't pay in one go, offer instalments (B2C) or two instalments 30 days apart (B2B). If they report a problem with the installation, apologise, say reminders are paused and the service team will call within one working day. If they promise a payment date, confirm it.
+Write only the plain-text email body: greet them, 2-4 short paragraphs, then sign off with "Kind regards," / "Lina" / "${co.name} Billing" on separate lines. No subject line, no emoji, under 150 words. Include the payment page link when asking for payment.
+Reply with ONLY valid JSON, no markdown: {"message":"<email body>","intent":"reminder|paid_claim|plan|dispute|promise|resend|other","promise_date":<null or short text>}`;
+}
+
+function parseBilling(raw){
+  let t=(raw||"").trim().replace(/```json/gi,"").replace(/```/g,"").trim();
+  const a=t.indexOf("{"), b=t.lastIndexOf("}");
+  if(a!==-1&&b>a) t=t.slice(a,b+1);
+  const o=JSON.parse(t);
+  if(!o.message) throw new Error("empty");
+  return o;
+}
+
+function reminderScript(inv, co, step){
+  const biz=inv.seg==="Commercial", d=invDays(inv);
+  const ref=`invoice ${inv.id}${inv.po?` (your PO ${inv.po})`:""}`, link=payUrl(inv,co), amt=eur(inv.amount), due=fmtD(inv.due);
+  const body={
+    pre:`A quick heads-up: ${ref} for the ${inv.milestone.toLowerCase()} payment of ${amt} is due on ${due}.\n\nYou can pay by card or bank transfer here:\n${link}`,
+    due:`Just a friendly note that ${ref} for ${amt} is due today.\n\nYou can pay in a minute here:\n${link}`,
+    r1:`We haven't received payment for ${ref} (${amt}, due ${due}) yet. It may simply have slipped through.\n\nYou can settle it here:\n${link}\n\nIf you've already paid, just reply with the date and we'll match it up.`,
+    r2:`${ref[0].toUpperCase()+ref.slice(1)} for ${amt} is now ${d} days overdue.\n\nPlease arrange payment within the next 7 days, or reply with a date that works for you.${biz?"":" If a lump sum is difficult, we can split it into 3 monthly instalments."}\n\n${link}`,
+    final:`This is a final reminder for ${ref} (${amt}, due ${due}), now ${d} days overdue.\n\nPlease pay within 7 days or contact us so we can agree a solution together.${biz?" A statement of account is available on request.":" We're happy to set up an instalment plan."}\n\n${link}`,
+  }[step.key];
+  return `${billHi(inv)}\n\n${body}\n\n${billSign(co)}`;
+}
+
+function replyScript(inv, co, intent){
+  const biz=inv.seg==="Commercial";
+  const body={
+    paid_claim:`Thank you for letting us know. Could you send the payment date and the bank reference? We'll match it against ${inv.id} and confirm. We've paused further reminders in the meantime.`,
+    plan:biz?`Thanks for being upfront. We can extend the terms for ${inv.id}: would two instalments of ${eur(inv.amount/2)}, 30 days apart, work for you?`
+            :`No problem. We can split ${eur(inv.amount)} into 3 monthly instalments of ${eur(inv.amount/3)}, with no extra fees. You can set it up on your payment page:\n${payUrl(inv,co)}`,
+    dispute:`I'm sorry to hear that. I've paused all payment reminders for ${inv.id}, and our service team will call you within one working day to sort out the installation first.`,
+    promise:`Thank you, I've noted the date you gave for ${inv.id}. We won't send further reminders before then.`,
+    resend:`Of course. Here is ${inv.id} again: ${inv.milestone} payment, ${eur(inv.amount)}, due ${fmtD(inv.due)}. You can view and pay it here:\n${payUrl(inv,co)}`,
+    other:`Thanks for your reply. If anything about ${inv.id} is unclear, just let me know. You can also view and pay it here:\n${payUrl(inv,co)}`,
+  }[intent];
+  return `${billHi(inv)}\n\n${body}\n\n${billSign(co)}`;
+}
+
+const reminderSubject = (inv, step) => `${step.key==="final"?"Final notice":step.key==="pre"?"Upcoming payment":"Payment reminder"}: invoice ${inv.id} · ${eur(inv.amount)}`;
+
+// Ledger: invoices issued, customer payments, and money going out to suppliers, over the last 14 months.
+const SUPPLIERS = [
+  { name:"Helios Module Supply GmbH",   account:"Materials: PV modules",            min:6000, max:26000, p:.55, method:"SEPA transfer" },
+  { name:"InverTech Distribution GmbH", account:"Materials: inverters & batteries", min:2500, max:12000, p:.45, method:"SEPA transfer" },
+  { name:"Gerüstbau Krämer KG",         account:"Equipment rental: scaffolding",    min:600,  max:2400,  p:.5,  method:"SEPA transfer" },
+  { name:"Elektro Partner Süd",         account:"Subcontractor: electrical",        min:1200, max:5200,  p:.4,  method:"SEPA transfer" },
+  { name:"Fleet fuel card",             account:"Vehicles: fuel",                   min:180,  max:650,   p:.9,  method:"Card" },
+  { name:"BauSecure Insurance",         account:"Insurance",                        min:420,  max:420,   p:1,   method:"Direct debit" },
+];
+const TXN_TYPES = ["Invoice issued","Payment received","Instalment received","Supplier payment","Refund"];
+
+const INITIAL_TXNS = (()=>{
+  const out=[]; let n=1000;
+  const add=t=>out.push({ id:`TX-${++n}`, ...t });
+  INITIAL_INVOICES.forEach(inv=>{
+    add({ date:inv.issued, co:inv.co, party:inv.name, seg:inv.seg, type:"Invoice issued", dir:"none", amount:inv.amount, method:"—", ref:inv.id, doc:`${inv.id}.pdf`, account:"Receivables" });
+    if(inv.paid) add({ date:inv.paid, co:inv.co, party:inv.name, seg:inv.seg, type:"Payment received", dir:"in", amount:inv.amount, method:inv.method, ref:inv.id,
+      doc:hash(inv.id+"d")<0.15?null:`Bank-statement-${inv.paid}.pdf`, account:"Bank" });
+  });
+  const t=today0();
+  COMPANIES.forEach(co=>{
+    for(let back=0; back<14; back++){
+      SUPPLIERS.forEach((s,si)=>{
+        if(hash(`${co.id}-${back}-${si}`)>s.p) return;
+        const d=new Date(t.getFullYear(), t.getMonth()-back, 1+Math.floor(hash(`${co.id}${back}${si}d`)*27));
+        if(d>t) return;
+        const amount=Math.round((s.min+(s.max-s.min)*hash(`${si}${back}${co.id}a`))/10)*10;
+        add({ date:ymd(d), co:co.id, party:s.name, seg:"Supplier", type:"Supplier payment", dir:"out", amount, method:s.method,
+          ref:`BILL-${ymd(d).slice(2,7).replace("-","")}-${n+1}`, doc:hash(`${co.id}${back}${si}x`)<0.12?null:`${s.name.split(" ")[0]}-bill-${ymd(d)}.pdf`, account:s.account });
+      });
+    }
+  });
+  add({ date:ymd(daysFrom(-95)), co:"SW-001", party:"Lukas Wagner", seg:"Residential", type:"Refund", dir:"out", amount:250, method:"SEPA transfer", ref:"RF-0007", doc:null, account:"Refunds: overpayment" });
+  return out.sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0);
+})();
+
+// Calendar settings for the ledger (per-viewer convenience, kept in this browser).
+const CAL_DEFAULT = { fyStart:0, weekStart:1, fmt:"DMY" };
+function loadCal(){ try{ return { ...CAL_DEFAULT, ...JSON.parse(localStorage.getItem("sw-calendar")||"{}") }; }catch{ return CAL_DEFAULT; } }
+function saveCal(c){ try{ localStorage.setItem("sw-calendar", JSON.stringify(c)); }catch{} }
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+function fmtDate(s, fmt){
+  const [y,m,d]=s.split("-");
+  return fmt==="ISO"?s : fmt==="MDY"?`${m}/${d}/${y}` : `${d}.${m}.${y}`;
+}
+const PRESETS = [["week","This week"],["month","This month"],["lastMonth","Last month"],["quarter","This quarter"],["lastQuarter","Last quarter"],
+  ["fy","This financial year"],["lastFy","Last financial year"],["last30","Last 30 days"],["last12","Last 12 months"]];
+function presetRange(key, s){
+  const t=today0(), y=t.getFullYear(), m=t.getMonth();
+  const fyY = m>=s.fyStart ? y : y-1;
+  const qIndex=Math.floor(((m-s.fyStart+12)%12)/3);
+  const qFrom=new Date(fyY, s.fyStart+qIndex*3, 1);
+  switch(key){
+    case "week": { const d=new Date(t); d.setDate(d.getDate()-((t.getDay()-s.weekStart+7)%7)); return [d,t]; }
+    case "month": return [new Date(y,m,1), t];
+    case "lastMonth": return [new Date(y,m-1,1), new Date(y,m,0)];
+    case "quarter": return [qFrom, t];
+    case "lastQuarter": return [new Date(qFrom.getFullYear(), qFrom.getMonth()-3, 1), new Date(qFrom.getFullYear(), qFrom.getMonth(), 0)];
+    case "fy": return [new Date(fyY, s.fyStart, 1), t];
+    case "lastFy": return [new Date(fyY-1, s.fyStart, 1), new Date(fyY, s.fyStart, 0)];
+    case "last30": return [daysFrom(-29), t];
+    default: return [daysFrom(-364), t];
+  }
+}
+
 // ================== ICONS ==================
 function Icon({d,size=18,color="currentColor",fill="none"}){
   return <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>;
@@ -272,9 +505,9 @@ function SegBadge({seg, small}){
 
 // Renders chat text, turning the customer-page link into a clickable jump to the B2C tab.
 function ChatText({text, onPortal}){
-  const parts=text.split(/(\S*solarwake\.app\/p\/[A-Za-z0-9-]+)/g);
+  const parts=text.split(/(\S*solarwake\.app\/[pi]\/[A-Za-z0-9-]+)/g);
   return parts.map((p,i)=>{
-    const m=p.match(/solarwake\.app\/p\/([A-Za-z0-9-]+)/);
+    const m=p.match(/solarwake\.app\/[pi]\/([A-Za-z0-9-]+)/);
     return m ? <a key={i} href="#" onClick={e=>{e.preventDefault();onPortal(m[1]);}} style={{color:"#027EB5",textDecoration:"underline",wordBreak:"break-all"}}>{p}</a> : <React.Fragment key={i}>{p}</React.Fragment>;
   });
 }
@@ -285,18 +518,40 @@ const SEED_ACTIVITY = [
   { t:now(), text:`🔌 CRM sync complete — ${CONTACTS.length} leads across ${COMPANIES.length} installers`, kind:"sys" },
 ];
 
-// A link in a real email (/?p=C-1006) opens that lead's customer page directly.
-const DEEP_LEAD = (()=>{ try{ const id=new URLSearchParams(location.search).get("p"); return CONTACTS.some(c=>c.id===id)?id:null; }catch{ return null; } })();
+// A link in a real email opens the right page directly: /?p=C-1006 (quote page) or /?i=INV-2026-0102 (pay page).
+const QS = (()=>{ try{ return new URLSearchParams(location.search); }catch{ return new URLSearchParams(); } })();
+const DEEP_LEAD = CONTACTS.some(c=>c.id===QS.get("p")) ? QS.get("p") : null;
+const DEEP_INV = INITIAL_INVOICES.some(i=>i.id===QS.get("i")) ? QS.get("i") : null;
 const START_LEAD = CONTACTS.find(c=>c.id===(DEEP_LEAD||FIRST_LEAD));
+const START_CO = DEEP_INV ? INITIAL_INVOICES.find(i=>i.id===DEEP_INV).co : START_LEAD.co;
 let msgSeq=0;
 const msgId = () => ++msgSeq;
-// In real emails, the in-app page link becomes a link to the deployed customer page.
-const realLinks = text => text.replace(/\S*solarwake\.app\/p\/([A-Za-z0-9-]+)/g, (_,id)=>`${location.origin}/?p=${id}`);
+// In real emails, in-app page links become links to the deployed site.
+const realLinks = text => text.replace(/\S*solarwake\.app\/([pi])\/([A-Za-z0-9-]+)/g, (_,k,id)=>`${location.origin}/?${k}=${id}`);
+const firstOpenInvoice = (invoices, co) => (invoices.filter(i=>i.co===co&&!i.paid).sort((a,b)=>invDays(b)-invDays(a))[0] || invoices.find(i=>i.co===co) || {}).id;
+
+const TABS = [
+  { id:"console",  t:"Leads",         s:"B2B · quote reactivation" },
+  { id:"invoices", t:"Invoices",      s:"B2B · payment reminders" },
+  { id:"ledger",   t:"Transactions",  s:"For your accountant" },
+  { id:"portal",   t:"Customer Page", s:"B2C · quote & savings" },
+  { id:"pay",      t:"Pay Page",      s:"B2C · invoice payment" },
+];
+const startPage = () => (location.hash.startsWith("#app")||DEEP_LEAD||DEEP_INV) ? "app" : "landing";
+const loadLang = () => { try{ return localStorage.getItem("sw-lang")==="de"?"de":"en"; }catch{ return "en"; } };
 
 function App(){
-  const [tab,setTab]=useState(DEEP_LEAD?"portal":"console");
+  const [page,setPage]=useState(startPage);
+  const [lang,setLangState]=useState(loadLang);
+  const [tab,setTab]=useState(DEEP_INV?"pay":DEEP_LEAD?"portal":"console");
   const [leads,setLeads]=useState(INITIAL_LEADS);
-  const [companyId,setCompanyId]=useState(START_LEAD.co);
+  const [companyId,setCompanyId]=useState(START_CO);
+  const [invoices,setInvoices]=useState(INITIAL_INVOICES);
+  const [invConvos,setInvConvos]=useState({});   // invoiceId -> [{role,text,time,...}]
+  const [invId,setInvId]=useState(DEEP_INV||firstOpenInvoice(INITIAL_INVOICES,START_CO));
+  const [invTyping,setInvTyping]=useState(null);
+  const [ladder,setLadder]=useState(LADDER.map(s=>({ ...s, on:true })));
+  const [txns,setTxns]=useState(INITIAL_TXNS);
   const [segFilter,setSegFilter]=useState("All");
   const [leadId,setLeadId]=useState(START_LEAD.id);
   const [convos,setConvos]=useState({});   // leadId -> [{role,text,time}]
@@ -340,6 +595,15 @@ function App(){
   useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[messages.length,typing]);
   useEffect(()=>()=>timers.current.forEach(clearTimeout),[]);
   useEffect(()=>{ fetch("/api/email").then(r=>r.json()).then(d=>setEmailCfg({ enabled:!!d.enabled, inbox:d.inbox||null })).catch(()=>{}); },[]);
+  useEffect(()=>{
+    const onHash=()=>setPage(location.hash.startsWith("#app")?"app":"landing");
+    window.addEventListener("hashchange",onHash); return ()=>window.removeEventListener("hashchange",onHash);
+  },[]);
+  useEffect(()=>{ document.body.style.background=page==="landing"?"#fff":C.night; document.documentElement.lang=page==="landing"?lang:"en"; },[page,lang]);
+
+  const setLang=l=>{ setLangState(l); try{ localStorage.setItem("sw-lang",l); }catch{} };
+  function openApp(t){ setTab(t||"console"); setPage("app"); if(location.hash!=="#app") location.hash="app"; window.scrollTo(0,0); }
+  function goHome(){ setPage("landing"); history.replaceState(null,"",location.pathname); window.scrollTo(0,0); }
 
   // When the open lead's last message is from the customer, the agent answers it.
   useEffect(()=>{
@@ -362,7 +626,10 @@ function App(){
     const f=leads.filter(l=>l.co===id).sort((a,b)=>rank(a)-rank(b))[0];
     if(f) pickLead(f.id);
   }
-  function openPortal(id){ const l=leads.find(x=>x.id===id); if(l){ setCompanyId(l.co); setLeadId(id); } setTab("portal"); }
+  function openPortal(id){
+    if(id.startsWith("INV-")){ const i=invoices.find(x=>x.id===id); if(i){ setCompanyId(i.co); setInvId(id); } setTab("pay"); return; }
+    const l=leads.find(x=>x.id===id); if(l){ setCompanyId(l.co); setLeadId(id); } setTab("portal");
+  }
 
   function setChannel(id,channel){ setLeads(ls=>ls.map(l=>l.id===id?{ ...l, channel }:l)); }
   const openerMsg=l=>{ const o=PLAYBOOKS[l.seg].opener[l.channel](l,coOf(l)); return { id:msgId(), role:"agent", text:o.text, subject:o.subject, time:now() }; };
@@ -372,19 +639,106 @@ function App(){
   // server redirects every email to the test inbox. Sends are spaced out to stay under Resend's rate limit.
   function deliver(l, msg){
     if(l.channel!=="email") return;
-    const mark=d=>setConvo(l.id,ms=>ms.map(m=>m.id===msg.id?{ ...m, delivery:d }:m));
+    mailOut({ to:l.email, subject:msg.subject, text:msg.text, fromName:`Lina · ${coOf(l).name}` }, l.name,
+      d=>setConvo(l.id,ms=>ms.map(m=>m.id===msg.id?{ ...m, delivery:d }:m)));
+  }
+  function mailOut(payload, who, mark){
     if(demoMode||!emailCfg.enabled){ mark({ state:"off", note:demoMode?"Demo mode: not sent":"Live email off: shown in the app only" }); return; }
     mark({ state:"sending" });
     const job=mailQueue.current.then(async()=>{
       const res=await fetch("/api/email",{ method:"POST", headers:{"content-type":"application/json"},
-        body:JSON.stringify({ to:l.email, subject:msg.subject, text:realLinks(msg.text), fromName:`Lina · ${coOf(l).name}` }) });
+        body:JSON.stringify({ ...payload, text:realLinks(payload.text) }) });
       const data=await res.json().catch(()=>({}));
       if(!res.ok) throw new Error(data.error||`HTTP ${res.status}`);
       return data;
     });
     mailQueue.current=job.catch(()=>{}).then(()=>sleep(600));
-    job.then(()=>{ mark({ state:"sent" }); log(`📨 Real email delivered to the test inbox (${l.name})`,"out"); })
-       .catch(e=>{ mark({ state:"error", note:e.message }); log(`⚠ Email for ${l.name} not sent: ${e.message}`,"sys"); });
+    job.then(()=>{ mark({ state:"sent" }); log(`📨 Real email delivered to the test inbox (${who})`,"out"); })
+       .catch(e=>{ mark({ state:"error", note:e.message }); log(`⚠ Email for ${who} not sent: ${e.message}`,"sys"); });
+  }
+
+  // ---------- Invoices: payment reminders, AI replies, payments ----------
+  const setInvConvo=(id,fn)=>setInvConvos(c=>({ ...c, [id]:fn(c[id]||[]) }));
+  const patchInv=(id,patch)=>setInvoices(v=>v.map(i=>i.id===id?{ ...i, ...patch }:i));
+  const deliverInv=(inv,msg)=>mailOut({ to:inv.email, subject:msg.subject, text:msg.text, fromName:`${coOf(inv).name} Billing` }, inv.name,
+    d=>setInvConvo(inv.id,ms=>ms.map(m=>m.id===msg.id?{ ...m, delivery:d }:m)));
+  const addTxn=t=>setTxns(v=>[{ id:`TX-L${Date.now()}${Math.floor(Math.random()*1000)}`, date:ymd(today0()), ...t }, ...v]);
+
+  async function sendReminder(inv, step){
+    if(busy.current.has(inv.id)) return;
+    step=step||ladderStep(inv,ladder)||ladder[0];
+    busy.current.add(inv.id); setInvTyping(inv.id);
+    const co=coOf(inv);
+    let text;
+    if(demoMode){ await sleep(700); text=reminderScript(inv,co,step); }
+    else{
+      try{ text=parseBilling(await callClaude(billingSystem(inv,co,step),[{ role:"user", content:`(Write the "${step.name}" email for this invoice now.)` }])).message; }
+      catch{ text=reminderScript(inv,co,step); }
+    }
+    const msg={ id:msgId(), role:"agent", text, subject:reminderSubject(inv,step), time:now(), step:step.name };
+    setInvConvo(inv.id,m=>[...m,msg]);
+    deliverInv(inv,msg);
+    setInvoices(v=>v.map(i=>i.id===inv.id?{ ...i, sent:[...i.sent,{ key:step.key, date:ymd(today0()) }] }:i));
+    log(`📨 ${step.name} sent for ${inv.id} (${inv.name})`,"out");
+    setInvTyping(t=>t===inv.id?null:t); busy.current.delete(inv.id);
+  }
+
+  function sendDueReminders(list){
+    if(!list.length){ flash("No reminders are due right now",C.panel2); return; }
+    log(`🚀 Sending ${list.length} due reminder${list.length>1?"s":""}`,"sys");
+    list.forEach((inv,k)=>later(()=>sendReminder(inv),k*900));
+  }
+
+  function invCustomerSend(inv, text){
+    const prev=invConvos[inv.id]||[];
+    if(busy.current.has(inv.id)||!prev.length) return;
+    const cm={ id:msgId(), role:"customer", text:text.trim(), subject:prev[0].subject?`Re: ${prev[0].subject}`:undefined, time:now() };
+    const history=[...prev,cm];
+    setInvConvo(inv.id,()=>history);
+    invAgentReply(inv,history);
+  }
+
+  async function invAgentReply(inv, history){
+    busy.current.add(inv.id); setInvTyping(inv.id);
+    const co=coOf(inv);
+    let intent=classifyReply(history[history.length-1].text), text, promise=null;
+    if(demoMode){ await sleep(800); text=replyScript(inv,co,intent); }
+    else{
+      try{
+        const msgs=[{ role:"user", content:"(Billing thread opened. You sent the first email below.)" },
+          ...history.map(m=>({ role:m.role==="agent"?"assistant":"user", content:m.text }))];
+        const r=parseBilling(await callClaude(billingSystem(inv,co,ladderStep(inv,ladder)), msgs));
+        text=r.message; promise=r.promise_date||null;
+        if(Object.prototype.hasOwnProperty.call(INTENT_FLAG,r.intent)) intent=r.intent;
+      }catch{ text=replyScript(inv,co,intent); }
+    }
+    const msg={ id:msgId(), role:"agent", text, subject:history[0].subject?`Re: ${history[0].subject}`:undefined, time:now() };
+    setInvConvo(inv.id,()=>[...history,msg]);
+    deliverInv(inv,msg);
+    const flag=intent==="promise"?`Payment promised${promise?`: ${promise}`:""}`:INTENT_FLAG[intent];
+    if(flag) patchInv(inv.id,{ flag });
+    log(`💬 ${inv.name} replied on ${inv.id}${flag?` → ${flag}`:""}`,"in");
+    setInvTyping(t=>t===inv.id?null:t); busy.current.delete(inv.id);
+  }
+
+  function markInvoicePaid(inv, method, via){
+    if(inv.paid) return;
+    patchInv(inv.id,{ paid:ymd(today0()), method, flag:null });
+    addTxn({ co:inv.co, party:inv.name, seg:inv.seg, type:"Payment received", dir:"in", amount:inv.amount, method, ref:inv.id, doc:`Payment-${inv.id}.pdf`, account:"Bank" });
+    flash(`✓ ${inv.id} paid — ${eur(inv.amount)}`);
+    log(`💶 ${inv.name} paid ${inv.id} (${eur(inv.amount)}) ${via}`,"win");
+  }
+  function startInstalments(inv){
+    const part=Math.round(inv.amount/3);
+    patchInv(inv.id,{ flag:"Instalment plan: 1 of 3 paid" });
+    addTxn({ co:inv.co, party:inv.name, seg:inv.seg, type:"Instalment received", dir:"in", amount:part, method:"Card", ref:inv.id, doc:`Instalment-1-${inv.id}.pdf`, account:"Bank" });
+    flash(`✓ Instalment plan started for ${inv.id} — ${eur(part)} paid`);
+    log(`💶 ${inv.name} started a 3-month plan on ${inv.id} (${eur(part)} paid)`,"win");
+  }
+  function reportProblem(inv){
+    patchInv(inv.id,{ flag:"Disputed: reminders paused" });
+    flash(`Reminders paused for ${inv.id}; service team notified`,C.panel2);
+    log(`⚠ ${inv.name} reported a problem on ${inv.id}: reminders paused, service team notified`,"in");
   }
 
   function start(){
@@ -489,7 +843,12 @@ function App(){
     setLeads(INITIAL_LEADS); setConvos({}); setBriefs({}); setActivity(SEED_ACTIVITY);
     setTypingId(null); setCampaign(false); setInput(""); setToast(null);
     setSegFilter("All"); setCompanyId("SW-001"); setLeadId(FIRST_LEAD);
+    setInvoices(INITIAL_INVOICES); setInvConvos({}); setTxns(INITIAL_TXNS); setInvTyping(null);
+    setLadder(LADDER.map(s=>({ ...s, on:true }))); setInvId(firstOpenInvoice(INITIAL_INVOICES,"SW-001"));
   }
+
+  const inv=invoices.find(i=>i.id===invId&&i.co===companyId)||invoices.find(i=>i.id===firstOpenInvoice(invoices,companyId));
+  if(page==="landing") return <Landing lang={lang} setLang={setLang} openApp={openApp}/>;
 
   const sMeta={ Cold:{label:"Cold · dormant",color:C.sub,bg:"#1E2A44"},
     Contacting:{label:"Contacting…",color:C.goldSoft,bg:"#3A2E12"},
@@ -497,17 +856,17 @@ function App(){
     Booked:{label:"Appointment booked",color:"#BBF7D0",bg:"#0F3D22"} }[lead?lead.status:"Cold"];
 
   return (
-    <div style={{minHeight:"100vh",color:C.text}}>
+    <div className="sw-app" style={{minHeight:"100vh",color:C.text}}>
       <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px 34px"}}>
         {/* Header */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12,marginBottom:14}}>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <button onClick={goHome} title="Back to the SolarWake homepage" style={{display:"flex",alignItems:"center",gap:12,background:"none",border:"none",color:C.text,cursor:"pointer",textAlign:"left",padding:0}}>
             <div style={{width:42,height:42,borderRadius:12,background:C.gold,display:"grid",placeItems:"center",boxShadow:`0 0 22px ${C.gold}55`,fontSize:22}}>☀️</div>
             <div>
               <div style={{fontSize:22,fontWeight:800,letterSpacing:-0.4}}>Solar<span style={{color:C.gold}}>Wake</span></div>
-              <div style={{fontSize:12.5,color:C.sub,marginTop:-2}}>We don't find new leads. We close the ones you already paid for.</div>
+              <div style={{fontSize:12.5,color:C.sub,marginTop:-2}}>Recover the revenue you've already earned · ← homepage</div>
             </div>
-          </div>
+          </button>
           <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
             <button onClick={()=>setDemoMode(d=>!d)} title="Toggle scripted demo mode (no network needed)"
               style={{display:"inline-flex",alignItems:"center",gap:7,fontSize:12,fontWeight:700,cursor:"pointer",
@@ -525,11 +884,11 @@ function App(){
         </div>
 
         {/* Tabs */}
-        <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
-          {[{id:"console",t:"Installer Console",s:"B2B · for solar companies"},{id:"portal",t:"Customer Page",s:"B2C · what the lead sees"}].map(x=>{
+        <div role="tablist" aria-label="SolarWake sections" style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+          {TABS.map(x=>{
             const on=tab===x.id;
             return (
-              <button key={x.id} onClick={()=>setTab(x.id)} style={{textAlign:"left",cursor:"pointer",background:on?C.panel2:"transparent",
+              <button key={x.id} role="tab" aria-selected={on} onClick={()=>setTab(x.id)} style={{textAlign:"left",cursor:"pointer",background:on?C.panel2:"transparent",
                 border:`1px solid ${on?C.gold:C.line}`,borderRadius:12,padding:"9px 16px",color:on?C.text:C.sub}}>
                 <div style={{fontWeight:800,fontSize:14}}>{x.t}</div>
                 <div style={{fontSize:11,color:on?C.gold:C.sub}}>{x.s}</div>
@@ -538,13 +897,26 @@ function App(){
           })}
         </div>
 
-        {tab==="console" ? (
+        {tab==="console" && (
           <Console {...{company,companyId,pickCompany,segFilter,setSegFilter,kpi,lead,leadId,pickLead,visibleLeads,messages,started,typing,pb,sMeta,
             start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal,setChannel}} />
-        ) : (
+        )}
+        {tab==="portal" && (
           <Portal key={lead?lead.id:"none"} lead={lead} company={company} companyLeads={companyLeads} pickLead={pickLead}
             pickCompany={pickCompany} onBook={bookFromPortal} backToConsole={()=>setTab("console")} />
         )}
+        {tab==="invoices" && (
+          <InvoicesView companyId={companyId} setCompanyId={id=>{ setCompanyId(id); setInvId(firstOpenInvoice(invoices,id)); }}
+            invoices={invoices} inv={inv} setInvId={setInvId} ladder={ladder} setLadder={setLadder}
+            convo={(inv&&invConvos[inv.id])||[]} typing={!!inv&&invTyping===inv.id}
+            sendReminder={sendReminder} sendDue={sendDueReminders} customerSend={invCustomerSend}
+            markPaid={markInvoicePaid} openPay={openPortal}/>
+        )}
+        {tab==="pay" && (
+          <PayPage key={inv?inv.id:"none"} invoices={invoices} inv={inv} setInvId={setInvId} companyId={companyId} setCompanyId={setCompanyId}
+            markPaid={markInvoicePaid} startInstalments={startInstalments} reportProblem={reportProblem} backToInvoices={()=>setTab("ledger")}/>
+        )}
+        {tab==="ledger" && <LedgerView txns={txns}/>}
 
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:16,flexWrap:"wrap",gap:10}}>
           <div style={{fontSize:12,color:C.sub}}>⚡ The agent runs live on Anthropic's Claude API, over WhatsApp or email. Same lead volume → more booked appointments.</div>
@@ -1113,6 +1485,678 @@ function Portal({ lead, company, companyLeads, pickLead, pickCompany, onBook, ba
         </div>
       </div>
     </>
+  );
+}
+
+// ================== B2B: INVOICES & PAYMENT REMINDERS ==================
+function MailCard({ m, mine, from, route, openLink }){
+  const muted="#6B7280";
+  return (
+    <div className="sw-in" style={{background:"#fff",border:"1px solid #E5E7EB",borderLeft:`3px solid ${mine?"#9CA3AF":"#1E3A8A"}`,borderRadius:10,padding:"10px 12px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:12,marginBottom:2}}>
+        <b style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{from}</b>
+        <span style={{color:muted,flexShrink:0}}>{m.time}</span>
+      </div>
+      <div style={{fontSize:11,color:muted,marginBottom:8,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{route}{m.step?` · ${m.step}`:""}</div>
+      {!mine&&m.delivery&&(
+        <div style={{fontSize:11,fontWeight:700,marginBottom:8,color:{ sent:"#15803D", error:"#B91C1C" }[m.delivery.state]||muted}}>
+          {{ sent:"📨 Real email delivered to the test inbox", sending:"Sending real email…", error:`⚠ Not sent: ${m.delivery.note}` }[m.delivery.state]||m.delivery.note}
+        </div>
+      )}
+      <div style={{fontSize:13.5,lineHeight:1.5,whiteSpace:"pre-wrap",wordBreak:"break-word"}}><ChatText text={m.text} onPortal={openLink}/></div>
+    </div>
+  );
+}
+
+function InvoicesView(p){
+  const { companyId, setCompanyId, invoices, inv, setInvId, ladder, setLadder, convo, typing, sendReminder, sendDue, customerSend, markPaid, openPay } = p;
+  const [filter,setFilter]=useState("All");
+  const company=COMPANIES.find(c=>c.id===companyId);
+  const coInv=invoices.filter(i=>i.co===companyId);
+  const open=coInv.filter(i=>!i.paid), overdue=open.filter(i=>invDays(i)>0), paidList=coInv.filter(i=>i.paid);
+  const avgDays=paidList.length?Math.round(paidList.reduce((s,i)=>s+daysBetween(parseYmd(i.issued),parseYmd(i.paid)),0)/paidList.length):0;
+  const sum=l=>l.reduce((s,i)=>s+i.amount,0);
+  const buckets=[["Not yet due",i=>invDays(i)<=0],["1–30 days late",i=>invDays(i)>=1&&invDays(i)<=30],["31–60 days late",i=>invDays(i)>=31&&invDays(i)<=60],["60+ days late",i=>invDays(i)>60]]
+    .map(([k,f],n)=>({ k, v:sum(open.filter(f)), color:["#7DD3FC",C.goldSoft,"#FDBA74","#FCA5A5"][n] }));
+  const maxB=Math.max(1,...buckets.map(b=>b.v));
+  const FILTERS={ All:()=>true, Overdue:i=>!i.paid&&invDays(i)>0, "Due soon":i=>!i.paid&&invDays(i)<=0&&invDays(i)>=-7, Paid:i=>!!i.paid, "Needs attention":i=>!!i.flag&&!i.paid };
+  const list=coInv.filter(FILTERS[filter]).sort((a,b)=>(a.paid?1:0)-(b.paid?1:0)||invDays(b)-invDays(a));
+  const dueList=coInv.filter(i=>reminderDue(i,ladder));
+
+  return (
+    <>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+        <div style={{display:"flex",alignItems:"center",gap:9,flexWrap:"wrap"}}>
+          <span style={label}>Installer</span>
+          <select aria-label="Installer" value={companyId} onChange={e=>setCompanyId(e.target.value)}
+            style={{background:C.panel2,color:C.text,border:`1px solid ${C.line}`,borderRadius:9,padding:"7px 10px",fontSize:13,fontWeight:600,outline:"none"}}>
+            {COMPANIES.map(c=><option key={c.id} value={c.id}>{c.name} — {c.city}</option>)}
+          </select>
+        </div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}} role="group" aria-label="Filter invoices">
+          {Object.keys(FILTERS).map(k=>{
+            const on=filter===k;
+            return <button key={k} onClick={()=>setFilter(k)} aria-pressed={on} style={{fontSize:12,fontWeight:700,cursor:"pointer",padding:"6px 12px",borderRadius:999,
+              background:on?C.gold:C.panel,color:on?C.night:C.sub,border:`1px solid ${on?C.gold:C.line}`}}>{k}</button>;
+          })}
+        </div>
+      </div>
+
+      <div className="sw-kpi" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:12}}>
+        {[
+          {k:"Outstanding",v:eur(sum(open)),sub:`${open.length} open invoice${open.length===1?"":"s"}`},
+          {k:"Overdue",v:eur(sum(overdue)),sub:`${overdue.length} invoice${overdue.length===1?"":"s"} past due`,hot:true},
+          {k:"Average days to get paid",v:`${avgDays} days`,sub:`across ${paidList.length} paid invoices`},
+          {k:"Needs attention",v:String(coInv.filter(i=>i.flag&&!i.paid).length),sub:"promises, plans, disputes"},
+        ].map(s=>(
+          <div key={s.k} style={{background:C.panel,border:`1px solid ${C.line}`,borderRadius:14,padding:"13px 14px"}}>
+            <div style={{fontSize:s.v.length>9?20:24,fontWeight:800,color:s.hot?"#FCA5A5":C.text}}>{s.v}</div>
+            <div style={{fontSize:12,fontWeight:600,marginTop:2}}>{s.k}</div>
+            <div style={{fontSize:10.5,color:C.sub,marginTop:1}}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="sw-2col" style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)",gap:14,marginBottom:14}}>
+        <div style={{...panel,padding:14}}>
+          <div style={{...label,marginBottom:10}}>Unpaid by age</div>
+          {buckets.map(b=>(
+            <div key={b.k} style={{display:"grid",gridTemplateColumns:"120px 1fr 90px",alignItems:"center",gap:10,marginBottom:8,fontSize:12.5}}>
+              <span style={{color:C.sub}}>{b.k}</span>
+              <div style={{height:9,background:C.night,borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:`${100*b.v/maxB}%`,background:b.color,borderRadius:99,transition:"width .5s"}}/></div>
+              <b style={{textAlign:"right"}}>{eur(b.v)}</b>
+            </div>
+          ))}
+          <button onClick={()=>sendDue(dueList)} style={{marginTop:6,width:"100%",background:dueList.length?C.gold:C.panel2,color:dueList.length?C.night:C.sub,border:"none",borderRadius:11,padding:"10px 14px",fontWeight:800,fontSize:13.5,cursor:"pointer"}}>
+            📨 Send all due reminders ({dueList.length})
+          </button>
+        </div>
+        <div style={{...panel,padding:14}}>
+          <div style={{...label,marginBottom:4}}>Reminder schedule</div>
+          <div style={{fontSize:11.5,color:C.sub,marginBottom:10}}>Each step gets firmer. Reminders stop the moment a customer pays, promises a date or reports a problem.</div>
+          {ladder.map((st,k)=>(
+            <label key={st.key} style={{display:"flex",alignItems:"center",gap:10,fontSize:12.5,padding:"5px 0",cursor:"pointer"}}>
+              <input type="checkbox" checked={st.on} onChange={e=>setLadder(l=>l.map((x,j)=>j===k?{ ...x, on:e.target.checked }:x))} style={{accentColor:C.gold,width:16,height:16}}/>
+              <span style={{width:74,color:C.sub,fontVariantNumeric:"tabular-nums"}}>{st.offset<0?`${-st.offset} days before`:st.offset===0?"On due date":`${st.offset} days after`}</span>
+              <b>{st.name}</b>
+            </label>
+          ))}
+          <div style={{fontSize:11,color:C.sub,marginTop:6}}>B2B: after a final notice, EU late-payment rules allow a flat €40 compensation plus statutory interest. SolarWake flags it for you; it never adds fees on its own.</div>
+        </div>
+      </div>
+
+      <div className="sw-grid" style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 400px",gap:18,alignItems:"start"}}>
+        <div style={panel}>
+          <div style={{...label,marginBottom:8}}>Invoices — {company.name}</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:560,overflowY:"auto",paddingRight:2}}>
+            {list.map(i=>{
+              const st=invStatus(i), active=inv&&i.id===inv.id, step=ladderStep(i,ladder);
+              return (
+                <button key={i.id} onClick={()=>setInvId(i.id)} aria-pressed={active}
+                  style={{textAlign:"left",display:"flex",alignItems:"center",gap:11,background:active?C.panel2:C.night,border:`1px solid ${active?C.gold:C.line}`,borderRadius:11,padding:"10px 12px",cursor:"pointer",width:"100%",color:C.text}}>
+                  <div style={{width:30,height:30,borderRadius:999,background:"#243352",display:"grid",placeItems:"center",fontSize:14,flexShrink:0}}>{PLAYBOOKS[i.seg].icon}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <span style={{fontSize:13,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{i.name}</span>
+                      <SegBadge seg={i.seg} small/>
+                    </div>
+                    <div style={{fontSize:11,color:C.sub}}>{i.id} · {i.milestone} · due {fmtD(i.due)}{i.flag?` · ${i.flag}`:step&&!i.paid?` · next: ${step.name}`:""}</div>
+                  </div>
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontSize:13,fontWeight:800}}>{eur(i.amount)}</div>
+                    <div style={{fontSize:11,fontWeight:700,color:st.color}}>{st.label}</div>
+                  </div>
+                </button>
+              );
+            })}
+            {!list.length&&<div style={{fontSize:12,color:C.sub,padding:10}}>No invoices match this filter.</div>}
+          </div>
+        </div>
+        <InvoicePane key={inv?inv.id:"none"} {...{inv,convo,typing,ladder,sendReminder,customerSend,markPaid,openPay}}/>
+      </div>
+    </>
+  );
+}
+
+function InvoicePane({ inv, convo, typing, ladder, sendReminder, customerSend, markPaid, openPay }){
+  const [draft,setDraft]=useState("");
+  const ref=useRef(null);
+  useEffect(()=>{ if(ref.current) ref.current.scrollTop=ref.current.scrollHeight; },[convo.length,typing]);
+  if(!inv) return <div style={panel}>No invoices for this installer.</div>;
+  const co=coOf(inv), st=invStatus(inv), step=ladderStep(inv,ladder)||ladder[0];
+  const started=convo.length>0, canReply=started&&!typing&&!inv.paid;
+  const submit=t=>{ if(!canReply||!(t||"").trim()) return; customerSend(inv,t); setDraft(""); };
+  const muted="#6B7280", line="#E5E7EB";
+  const btn=(bg,fg)=>({ background:bg, color:fg, border:"none", borderRadius:9, padding:"8px 11px", fontWeight:700, fontSize:12.5, cursor:"pointer" });
+
+  return (
+    <div style={{background:"#fff",borderRadius:16,overflow:"hidden",display:"flex",flexDirection:"column",height:700,boxShadow:"0 20px 50px rgba(0,0,0,.5)",color:"#1F2937"}}>
+      <div style={{background:"#1E3A8A",color:"#fff",padding:"11px 14px"}}>
+        <div style={{fontWeight:700,fontSize:14}}>💶 Billing inbox · {billEmail(co)}</div>
+        <div style={{fontSize:11.5,opacity:.85,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{typing?"Lina is drafting…":`${inv.contact} <${inv.email}> · fictional test contact`}</div>
+      </div>
+      <div style={{padding:"10px 14px",borderBottom:`1px solid ${line}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"baseline"}}>
+          <b style={{fontSize:14.5}}>{inv.id} · {inv.milestone} ({Math.round(inv.pct*100)}%)</b>
+          <b style={{fontSize:16}}>{eur(inv.amount)}</b>
+        </div>
+        <div style={{fontSize:12,color:muted,marginTop:2}}>
+          {inv.name}{inv.po?` · ${inv.po}`:""} · issued {fmtD(inv.issued)} · due {fmtD(inv.due)} · <b style={{color:inv.paid?"#15803D":invDays(inv)>0?"#B91C1C":muted}}>{inv.paid?`Paid ${fmtD(inv.paid)}`:st.label}</b>
+        </div>
+        {inv.flag&&!inv.paid&&<div style={{marginTop:6,display:"inline-block",fontSize:11.5,fontWeight:700,color:"#92400E",background:"#FEF3C7",padding:"3px 9px",borderRadius:999}}>⏸ {inv.flag}</div>}
+        {!inv.paid&&(
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
+            <button onClick={()=>sendReminder(inv,step)} disabled={typing} style={{...btn("#1E3A8A","#fff"),opacity:typing?.5:1}}>📨 Send “{step.name}”</button>
+            <button onClick={()=>markPaid(inv,"SEPA transfer","by bank transfer (marked manually)")} style={btn("#DCFCE7","#166534")}>✓ Mark as paid</button>
+            <button onClick={()=>openPay(inv.id)} style={btn("#F3F4F6","#1F2937")}>Pay page ↗</button>
+          </div>
+        )}
+      </div>
+
+      <div ref={ref} style={{flex:1,overflowY:"auto",padding:12,display:"flex",flexDirection:"column",gap:10,background:"#F3F4F6"}}>
+        {!started&&(
+          <div style={{margin:"auto",textAlign:"center",color:muted,maxWidth:280,fontSize:13,lineHeight:1.5}}>
+            {inv.paid?`✅ Paid on ${fmtD(inv.paid)} by ${inv.method||"transfer"}. Nothing to chase.`
+              :<>No reminders sent yet. The next step on the schedule is <b>{step.name}</b>, written for a {inv.seg==="Commercial"?"business accounts team":"homeowner"}.</>}
+          </div>
+        )}
+        {convo.map(m=>{
+          const mine=m.role==="customer";
+          return <MailCard key={m.id} m={m} mine={mine} from={mine?inv.contact:`Lina · ${co.name} Billing`}
+            route={mine?`${inv.email} → ${billEmail(co)}`:`${billEmail(co)} → ${inv.email}`} openLink={openPay}/>;
+        })}
+        {typing&&<div style={{background:"#fff",border:`1px solid ${line}`,borderRadius:10,padding:"10px 12px",fontSize:12.5,color:muted}}><span className="sw-dots"><i/><i/><i/></span> Lina is drafting…</div>}
+      </div>
+
+      {started&&!inv.paid&&(
+        <div style={{borderTop:`1px solid ${line}`,padding:10}}>
+          <div style={{fontSize:11,color:muted,marginBottom:6}}>Reply as {inv.contact} · suggested:</div>
+          <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:8}}>
+            {PAY_QUICK.map(q=>(
+              <button key={q} onClick={()=>submit(q)} disabled={!canReply}
+                style={{whiteSpace:"nowrap",fontSize:12,background:"#EEF2FF",color:"#1E3A8A",border:"1px solid #C7D2FE",padding:"5px 10px",borderRadius:999,cursor:canReply?"pointer":"default",opacity:canReply?1:.5,fontWeight:600}}>{q}</button>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+            <textarea aria-label={`Reply as ${inv.contact}`} value={draft} onChange={e=>setDraft(e.target.value)} disabled={!canReply} rows={2}
+              onKeyDown={e=>{ if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)) submit(draft); }} placeholder={`Write a reply as ${inv.contact}… (Ctrl+Enter to send)`}
+              style={{flex:1,resize:"none",border:`1px solid ${line}`,borderRadius:10,padding:"8px 10px",fontSize:13.5,fontFamily:"inherit",outline:"none",color:"#1F2937"}}/>
+            <button onClick={()=>submit(draft)} disabled={!canReply||!draft.trim()} style={{...btn("#1E3A8A","#fff"),padding:"10px 14px",opacity:canReply&&draft.trim()?1:.5}}>Send</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ================== B2C: PAY PAGE ==================
+function PayPage({ invoices, inv, setInvId, companyId, setCompanyId, markPaid, startInstalments, reportProblem, backToInvoices }){
+  const [method,setMethod]=useState("card");
+  if(!inv) return <div style={panel}>No invoice selected.</div>;
+  const co=coOf(inv), biz=inv.seg==="Commercial", brand=co.brand, st=invStatus(inv);
+  const coInv=invoices.filter(i=>i.co===inv.co);
+  const card={ background:"#fff", border:`1px solid ${C.pLine}`, borderRadius:14, padding:16 };
+  const opts=[["card","Card","Visa, Mastercard · instant"],["sepa","Bank transfer (SEPA)","1–2 working days"],...(biz?[]:[["plan","3 monthly instalments",`${eur(inv.amount/3)} per month · no extra fees`]])];
+  const pay=()=>{ if(method==="plan") startInstalments(inv); else markPaid(inv, method==="card"?"Card":"SEPA transfer", "on the pay page"); };
+
+  return (
+    <>
+      <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:12}}>
+        <span style={label}>Preview pay page for</span>
+        <select aria-label="Installer" value={inv.co} onChange={e=>{ setCompanyId(e.target.value); const f=invoices.find(i=>i.co===e.target.value&&!i.paid)||invoices.find(i=>i.co===e.target.value); if(f) setInvId(f.id); }}
+          style={{background:C.panel2,color:C.text,border:`1px solid ${C.line}`,borderRadius:9,padding:"7px 10px",fontSize:13,fontWeight:600}}>
+          {COMPANIES.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select aria-label="Invoice" value={inv.id} onChange={e=>setInvId(e.target.value)}
+          style={{background:C.panel2,color:C.text,border:`1px solid ${C.line}`,borderRadius:9,padding:"7px 10px",fontSize:13,fontWeight:600}}>
+          {coInv.map(i=><option key={i.id} value={i.id}>{i.id} · {i.name} · {i.paid?"paid":eur(i.amount)}</option>)}
+        </select>
+        <span style={{fontSize:12,color:C.sub}}>Linked from every payment reminder</span>
+      </div>
+
+      <div style={{background:"#fff",borderRadius:16,overflow:"hidden",boxShadow:"0 20px 50px rgba(0,0,0,.5)"}}>
+        <div style={{background:"#E9ECF1",padding:"9px 12px",display:"flex",alignItems:"center",gap:10}}>
+          <span style={{display:"flex",gap:5}}>{["#FF5F57","#FEBC2E","#28C840"].map(c=><i key={c} style={{width:10,height:10,borderRadius:99,background:c,display:"block"}}/>)}</span>
+          <div style={{flex:1,background:"#fff",borderRadius:8,padding:"5px 10px",fontSize:12,color:"#475569",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>🔒 {payUrl(inv,co)}</div>
+        </div>
+        <div style={{background:C.pBg,color:C.pInk,padding:"0 0 22px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 22px",background:"#fff",borderBottom:`1px solid ${C.pLine}`,flexWrap:"wrap",gap:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:34,height:34,borderRadius:9,background:brand,display:"grid",placeItems:"center",color:"#fff",fontSize:17}}>☀</div>
+              <div><div style={{fontWeight:800}}>{co.name}</div><div style={{fontSize:11,color:C.pSub}}>Secure invoice payment</div></div>
+            </div>
+            <div style={{fontSize:12,color:C.pSub}}>Questions? <b style={{color:C.pInk}}>{billEmail(co)}</b></div>
+          </div>
+
+          <div className="sw-pgrid" style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 340px",gap:16,padding:"20px 22px 0"}}>
+            <div style={card}>
+              <div style={{fontSize:12,color:C.pSub}}>Invoice for {inv.name}{inv.po?` · ${inv.po}`:""}</div>
+              <div style={{fontSize:24,fontWeight:800,margin:"2px 0 12px"}}>{inv.id}</div>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13.5}}>
+                <tbody>
+                  {[["Description",`${inv.milestone} payment (${Math.round(inv.pct*100)}%), ${inv.kw} kW solar installation`],["Issued",fmtD(inv.issued)],["Due",fmtD(inv.due)],["Status",inv.paid?`Paid on ${fmtD(inv.paid)}`:st.label]].map(([k,v])=>(
+                    <tr key={k} style={{borderTop:`1px solid ${C.pLine}`}}><td style={{padding:"9px 0",color:C.pSub,width:110}}>{k}</td><td style={{padding:"9px 0",fontWeight:600}}>{v}</td></tr>
+                  ))}
+                  <tr style={{borderTop:`2px solid ${C.pInk}`}}><td style={{padding:"11px 0",fontWeight:800}}>Amount</td><td style={{padding:"11px 0",fontWeight:800,fontSize:20}}>{eur(inv.amount)}</td></tr>
+                </tbody>
+              </table>
+              {inv.flag&&!inv.paid&&<div style={{marginTop:10,fontSize:12.5,color:"#92400E",background:"#FEF3C7",padding:"8px 10px",borderRadius:9}}>{inv.flag}</div>}
+            </div>
+
+            <div style={card}>
+              {inv.paid ? (
+                <div style={{textAlign:"center",padding:"18px 0"}}>
+                  <div style={{fontSize:34}}>✅</div>
+                  <div style={{fontSize:18,fontWeight:800}}>Thank you, this invoice is paid</div>
+                  <div style={{fontSize:13,color:C.pSub,marginTop:4}}>Paid on {fmtD(inv.paid)} by {inv.method}. A receipt is on its way.</div>
+                  <button onClick={backToInvoices} style={{marginTop:12,fontSize:12,fontWeight:700,background:C.pInk,color:"#fff",border:"none",borderRadius:999,padding:"8px 14px",cursor:"pointer"}}>See it in the installer's ledger →</button>
+                </div>
+              ) : (
+                <>
+                  <div style={{fontWeight:800,marginBottom:10}}>How would you like to pay?</div>
+                  <div role="radiogroup" aria-label="Payment method" style={{display:"flex",flexDirection:"column",gap:8}}>
+                    {opts.map(([k,t,s])=>(
+                      <label key={k} style={{display:"flex",gap:10,alignItems:"center",padding:"10px 12px",border:`1.5px solid ${method===k?brand:C.pLine}`,borderRadius:11,cursor:"pointer",background:method===k?`${brand}10`:"#fff"}}>
+                        <input type="radio" name="paymethod" checked={method===k} onChange={()=>setMethod(k)} style={{accentColor:brand}}/>
+                        <span><b style={{fontSize:13.5}}>{t}</b><br/><span style={{fontSize:11.5,color:C.pSub}}>{s}</span></span>
+                      </label>
+                    ))}
+                  </div>
+                  {method==="sepa"&&<div style={{fontSize:12,color:C.pSub,background:C.pBg,borderRadius:9,padding:"8px 10px",marginTop:8}}>IBAN DE00 1234 5678 9000 0000 00 (example account) · reference <b>{inv.id}</b></div>}
+                  <button onClick={pay} style={{marginTop:12,width:"100%",padding:"12px 0",borderRadius:11,border:"none",fontWeight:800,fontSize:15,cursor:"pointer",background:brand,color:"#fff"}}>
+                    {method==="plan"?`Start plan · pay ${eur(inv.amount/3)} today`:`Pay ${eur(inv.amount)}`}
+                  </button>
+                  <div style={{fontSize:11,color:C.pSub,textAlign:"center",marginTop:6}}>Test payment: no money moves in this demo.</div>
+                  <button onClick={()=>reportProblem(inv)} style={{marginTop:10,width:"100%",background:"none",border:`1px solid ${C.pLine}`,borderRadius:10,padding:"8px 0",fontSize:12.5,fontWeight:700,color:C.pInk,cursor:"pointer"}}>
+                    Something wrong with the installation? Tell us first
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ================== ACCOUNTANT: TRANSACTIONS LEDGER ==================
+function RangeCalendar({ from, to, onPick, weekStart, counts }){
+  const [view,setView]=useState(()=>{ const d=parseYmd(to); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const [pending,setPending]=useState(null);
+  useEffect(()=>{ if(!pending){ const d=parseYmd(to); setView(new Date(d.getFullYear(), d.getMonth(), 1)); } },[to]);
+  const y=view.getFullYear(), m=view.getMonth();
+  const lead=(new Date(y,m,1).getDay()-weekStart+7)%7, days=new Date(y,m+1,0).getDate();
+  const cells=[...Array(lead).fill(null), ...Array.from({ length:days },(_,i)=>new Date(y,m,i+1))];
+  const names=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], head=[...names.slice(weekStart),...names.slice(0,weekStart)];
+  const todayS=ymd(today0());
+  const pick=d=>{ const s=ymd(d); if(!pending){ setPending(s); onPick(s,s); } else { const [a,b]=pending<=s?[pending,s]:[s,pending]; onPick(a,b); setPending(null); } };
+  const nav=k=>setView(new Date(y,m+k,1));
+  const navBtn={ background:C.panel2, color:C.text, border:`1px solid ${C.line}`, borderRadius:8, width:30, height:30, cursor:"pointer", fontSize:15 };
+  return (
+    <div style={{background:C.night,border:`1px solid ${C.line}`,borderRadius:12,padding:12,width:"100%",maxWidth:330}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+        <button onClick={()=>nav(-1)} aria-label="Previous month" style={navBtn}>‹</button>
+        <b style={{fontSize:13.5}} aria-live="polite">{MONTHS[m]} {y}</b>
+        <button onClick={()=>nav(1)} aria-label="Next month" style={navBtn}>›</button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,textAlign:"center"}}>
+        {head.map(h=><div key={h} style={{fontSize:10.5,color:C.sub,fontWeight:700,padding:"2px 0"}}>{h}</div>)}
+        {cells.map((d,i)=>{
+          if(!d) return <div key={`e${i}`}/>;
+          const s=ymd(d), inR=s>=from&&s<=to, edge=s===from||s===to, n=counts[s]||0;
+          return (
+            <button key={s} onClick={()=>pick(d)} aria-pressed={inR} aria-label={`${d.getDate()} ${MONTHS[m]} ${y}${n?`, ${n} transaction${n>1?"s":""}`:""}`}
+              style={{position:"relative",height:32,borderRadius:7,cursor:"pointer",fontSize:12.5,fontWeight:edge?800:500,
+                border:s===todayS?`1px solid ${C.gold}`:"1px solid transparent",
+                background:edge?C.gold:inR?"#3A2E12":"transparent",color:edge?C.night:s>todayS?"#55627c":C.text}}>
+              {d.getDate()}
+              {n>0&&<span style={{position:"absolute",bottom:3,left:"50%",transform:"translateX(-50%)",width:4,height:4,borderRadius:99,background:edge?C.night:"#7DD3FC"}}/>}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{fontSize:11,color:C.sub,marginTop:8}}>{pending?"Now pick the end date.":"Click a start date, then an end date. Dots mark days with transactions."}</div>
+    </div>
+  );
+}
+
+function exportCsv(rows, from, to, fmt){
+  const head=["Date","Reference","Installer","Party","Segment","Type","Amount (EUR)","Method","Account","Document"];
+  const esc=v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`;
+  const lines=[head, ...rows.map(r=>[fmtDate(r.date,fmt), r.ref, COMPANIES.find(c=>c.id===r.co).name, r.party, r.seg, r.type,
+    (r.dir==="out"?-r.amount:r.amount).toFixed(2), r.method, r.account, r.doc||"MISSING"])].map(l=>l.map(esc).join(","));
+  const blob=new Blob(["﻿"+lines.join("\r\n")],{ type:"text/csv;charset=utf-8" });
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=`solarwake-transactions_${from}_to_${to}.csv`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+function LedgerView({ txns }){
+  const [cal,setCal]=useState(loadCal);
+  const [preset,setPreset]=useState("fy");
+  const [range,setRange]=useState(()=>presetRange("fy",loadCal()).map(ymd));
+  const [co,setCo]=useState("All");
+  const [dir,setDir]=useState("All");
+  const [type,setType]=useState("All");
+  const [q,setQ]=useState("");
+  const [missingOnly,setMissingOnly]=useState(false);
+  const [showSettings,setShowSettings]=useState(false);
+  const [requested,setRequested]=useState({});
+  const [from,to]=range;
+
+  useEffect(()=>{ saveCal(cal); if(preset!=="custom") setRange(presetRange(preset,cal).map(ymd)); },[cal]);
+  const applyPreset=k=>{ setPreset(k); setRange(presetRange(k,cal).map(ymd)); };
+  const setCustom=(a,b)=>{ setPreset("custom"); setRange(a<=b?[a,b]:[b,a]); };
+
+  const needle=q.trim().toLowerCase();
+  const base=txns.filter(t=>(co==="All"||t.co===co)&&(dir==="All"||t.dir===dir)&&(type==="All"||t.type===type)
+    &&(!needle||[t.party,t.ref,t.account,t.method,t.doc||""].some(v=>v.toLowerCase().includes(needle))));
+  const counts={}; base.forEach(t=>{ counts[t.date]=(counts[t.date]||0)+1; });
+  const inPeriod=base.filter(t=>t.date>=from&&t.date<=to);
+  const rows=inPeriod.filter(t=>!missingOnly||!t.doc);
+  const sumBy=f=>inPeriod.filter(f).reduce((s,t)=>s+t.amount,0);
+  const moneyIn=sumBy(t=>t.dir==="in"), moneyOut=sumBy(t=>t.dir==="out"), invoiced=sumBy(t=>t.type==="Invoice issued");
+  const missing=inPeriod.filter(t=>!t.doc).length;
+  const sel={ background:C.panel2, color:C.text, border:`1px solid ${C.line}`, borderRadius:9, padding:"7px 10px", fontSize:13, fontWeight:600 };
+  const dateIn={ ...sel, colorScheme:"dark", fontFamily:"inherit" };
+
+  return (
+    <>
+      <div style={{...panel,padding:14,marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginBottom:10}}>
+          <div>
+            <div style={label}>Period</div>
+            <div style={{fontSize:16,fontWeight:800,marginTop:2}}>{fmtDate(from,cal.fmt)} – {fmtDate(to,cal.fmt)}</div>
+          </div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+            <label style={{fontSize:12,color:C.sub}}>From <input type="date" value={from} max={to} onChange={e=>e.target.value&&setCustom(e.target.value,to)} style={dateIn}/></label>
+            <label style={{fontSize:12,color:C.sub}}>To <input type="date" value={to} min={from} onChange={e=>e.target.value&&setCustom(from,e.target.value)} style={dateIn}/></label>
+            <button onClick={()=>setShowSettings(s=>!s)} aria-expanded={showSettings} style={{...sel,cursor:"pointer"}}>⚙ Calendar settings</button>
+          </div>
+        </div>
+        {showSettings&&(
+          <div className="sw-in" style={{display:"flex",gap:14,flexWrap:"wrap",background:C.night,border:`1px solid ${C.line}`,borderRadius:12,padding:12,marginBottom:10}}>
+            <label style={{fontSize:12,color:C.sub}}>Financial year starts in<br/>
+              <select value={cal.fyStart} onChange={e=>setCal(c=>({ ...c, fyStart:Number(e.target.value) }))} style={{...sel,marginTop:4}}>{MONTHS.map((n,i)=><option key={n} value={i}>{n}</option>)}</select>
+            </label>
+            <label style={{fontSize:12,color:C.sub}}>Week starts on<br/>
+              <select value={cal.weekStart} onChange={e=>setCal(c=>({ ...c, weekStart:Number(e.target.value) }))} style={{...sel,marginTop:4}}><option value={1}>Monday</option><option value={0}>Sunday</option></select>
+            </label>
+            <label style={{fontSize:12,color:C.sub}}>Date format<br/>
+              <select value={cal.fmt} onChange={e=>setCal(c=>({ ...c, fmt:e.target.value }))} style={{...sel,marginTop:4}}>
+                <option value="DMY">31.12.2026</option><option value="ISO">2026-12-31</option><option value="MDY">12/31/2026</option>
+              </select>
+            </label>
+            <div style={{fontSize:11.5,color:C.sub,alignSelf:"flex-end",maxWidth:260}}>Quarters and financial years follow your year start. Saved in this browser.</div>
+          </div>
+        )}
+        <div style={{display:"flex",gap:14,flexWrap:"wrap",alignItems:"flex-start"}}>
+          <RangeCalendar from={from} to={to} onPick={setCustom} weekStart={cal.weekStart} counts={counts}/>
+          <div style={{flex:"1 1 300px"}}>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}} role="group" aria-label="Quick periods">
+              {PRESETS.map(([k,t])=>{
+                const on=preset===k;
+                return <button key={k} onClick={()=>applyPreset(k)} aria-pressed={on} style={{fontSize:12,fontWeight:700,cursor:"pointer",padding:"6px 11px",borderRadius:999,
+                  background:on?C.gold:C.panel2,color:on?C.night:C.sub,border:`1px solid ${on?C.gold:C.line}`}}>{t}</button>;
+              })}
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <select aria-label="Installer" value={co} onChange={e=>setCo(e.target.value)} style={sel}><option value="All">All installers</option>{COMPANIES.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
+              <select aria-label="Direction" value={dir} onChange={e=>setDir(e.target.value)} style={sel}><option value="All">Money in & out</option><option value="in">Money in</option><option value="out">Money out</option><option value="none">Invoices issued</option></select>
+              <select aria-label="Type" value={type} onChange={e=>setType(e.target.value)} style={sel}><option value="All">All types</option>{TXN_TYPES.map(t=><option key={t}>{t}</option>)}</select>
+              <input aria-label="Search" value={q} onChange={e=>setQ(e.target.value)} placeholder="Search party, reference, account…" style={{...sel,flex:"1 1 200px",fontWeight:500}}/>
+              <label style={{display:"flex",alignItems:"center",gap:7,fontSize:12.5,fontWeight:700,color:missingOnly?"#FCA5A5":C.sub,cursor:"pointer"}}>
+                <input type="checkbox" checked={missingOnly} onChange={e=>setMissingOnly(e.target.checked)} style={{accentColor:"#F87171",width:16,height:16}}/> Missing documents only
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="sw-kpi" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
+        {[["Money in",`+${eur(moneyIn)}`,"#7BE0A6"],["Money out",`−${eur(moneyOut)}`,"#FCA5A5"],["Net cash",`${moneyIn-moneyOut<0?"−":"+"}${eur(Math.abs(moneyIn-moneyOut))}`,C.text],["Invoiced",eur(invoiced),C.text],["Missing documents",String(missing),missing?"#FCA5A5":"#7BE0A6"]].map(([k,v,c])=>(
+          <button key={k} onClick={k==="Missing documents"?()=>setMissingOnly(s=>!s):undefined} style={{textAlign:"left",background:C.panel,border:`1px solid ${k==="Missing documents"&&missingOnly?"#FCA5A5":C.line}`,borderRadius:14,padding:"12px 14px",color:C.text,cursor:k==="Missing documents"?"pointer":"default"}}>
+            <div style={{fontSize:v.length>10?17:21,fontWeight:800,color:c}}>{v}</div>
+            <div style={{fontSize:12,fontWeight:600,marginTop:2}}>{k}</div>
+            <div style={{fontSize:10.5,color:C.sub}}>{k==="Missing documents"?"click to filter":`${fmtDate(from,cal.fmt)} – ${fmtDate(to,cal.fmt)}`}</div>
+          </button>
+        ))}
+      </div>
+
+      <div style={panel}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:10}}>
+          <div style={label}>{rows.length} transaction{rows.length===1?"":"s"} in this period</div>
+          <button onClick={()=>exportCsv(rows,from,to,cal.fmt)} disabled={!rows.length} style={{background:C.gold,color:C.night,border:"none",borderRadius:10,padding:"8px 14px",fontWeight:800,fontSize:13,cursor:"pointer",opacity:rows.length?1:.5}}>⬇ Export CSV for accountant</button>
+        </div>
+        <div style={{overflowX:"auto",maxHeight:520,overflowY:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5,minWidth:860}}>
+            <thead>
+              <tr style={{position:"sticky",top:0,background:C.panel,textAlign:"left",color:C.sub}}>
+                {["Date","Reference","Party","Type","Amount","Method","Account","Document"].map(h=><th key={h} scope="col" style={{padding:"8px 8px",fontSize:11,textTransform:"uppercase",letterSpacing:.5,borderBottom:`1px solid ${C.line}`,textAlign:h==="Amount"?"right":"left"}}>{h}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(t=>(
+                <tr key={t.id} style={{borderBottom:`1px solid ${C.line}`}}>
+                  <td style={{padding:"8px",whiteSpace:"nowrap",fontVariantNumeric:"tabular-nums"}}>{fmtDate(t.date,cal.fmt)}</td>
+                  <td style={{padding:"8px",whiteSpace:"nowrap",color:C.sub}}>{t.ref}</td>
+                  <td style={{padding:"8px"}}>{t.party}{co==="All"&&<div style={{fontSize:10.5,color:C.sub}}>{COMPANIES.find(c=>c.id===t.co).name}</div>}</td>
+                  <td style={{padding:"8px",whiteSpace:"nowrap"}}>{t.type}</td>
+                  <td style={{padding:"8px",textAlign:"right",fontWeight:800,whiteSpace:"nowrap",fontVariantNumeric:"tabular-nums",color:t.dir==="in"?"#7BE0A6":t.dir==="out"?"#FCA5A5":C.sub}}>
+                    {t.dir==="in"?"+":t.dir==="out"?"−":""}{eur(t.amount)}
+                  </td>
+                  <td style={{padding:"8px",whiteSpace:"nowrap",color:C.sub}}>{t.method}</td>
+                  <td style={{padding:"8px",color:C.sub}}>{t.account}</td>
+                  <td style={{padding:"8px",whiteSpace:"nowrap"}}>
+                    {t.doc ? <span style={{color:C.text}}>📎 {t.doc}</span>
+                      : requested[t.id] ? <span style={{color:C.goldSoft,fontWeight:700}}>⏳ Requested</span>
+                      : <button onClick={()=>setRequested(r=>({ ...r, [t.id]:true }))} style={{background:"#3B1D1D",color:"#FCA5A5",border:"1px solid #7F1D1D",borderRadius:8,padding:"3px 8px",fontSize:11.5,fontWeight:700,cursor:"pointer"}}>⚠ Missing · request</button>}
+                  </td>
+                </tr>
+              ))}
+              {!rows.length&&<tr><td colSpan={8} style={{padding:16,color:C.sub,textAlign:"center"}}>No transactions in this period. Try a wider range.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ================== PUBLIC LANDING PAGE ==================
+const LT = {
+  en:{ skip:"Skip to content", nav:["Product","How it works","Solutions","Trust"], signin:"Sign in", book:"Book a demo",
+    eyebrow:"Revenue recovery for solar installers", h1:"Get paid for the solar work you've already done",
+    sub:"SolarWake's AI agent follows up on quotes that went quiet and invoices that haven't been paid, by email or WhatsApp, in the right tone for homeowners and businesses.",
+    cta:"Try the live demo", cta2:"See how it works",
+    intro:"One AI agent for the money that slips through the cracks.",
+    stats:["of quotes waiting in the demo pipeline","overdue invoices ready for a gentle reminder","real people emailed: every demo contact is fictional"],
+    productTitle:"Three tools, one platform", open:"Open in demo",
+    products:[["Quote reactivation","Re-engages leads who got a quote and went quiet, answers their questions and books a call with your advisor."],
+      ["Payment reminders","Polite reminders that get firmer after the due date, with a pay-now link, instalments and AI replies."],
+      ["Transaction ledger","Every payment in and out, filtered by any period, with missing documents flagged for your accountant."]],
+    howTitle:"How it works",
+    how:[["Connect your data","Import quotes and invoices from your CRM or accounting tool."],["Pick the playbook","Homeowners get a warm, simple tone. Businesses get invoice numbers, POs and their accounts team."],
+      ["Let the agent follow up","Emails and WhatsApps go out on schedule. The AI reads replies: already paid, needs instalments, has a problem."],["Get paid, stay audit-ready","Calls get booked, invoices get paid, and every transaction is logged with its document."]],
+    solTitle:"Built for both sides of your business",
+    b2c:["Homeowners (B2C)",["Friendly tone, first names, no jargon","Savings page and 3 monthly instalments","WhatsApp or email, whichever they prefer"]],
+    b2b:["Businesses (B2B)",["Writes to the accounts payable team","Quotes invoice and PO numbers, offers statements","Books calls with the CFO or owner"]],
+    trustTitle:"Trust and data protection",
+    trust:["An opt-out in every message and a sending limit per customer","Every message, reply and payment is logged for audits","Problems go to a human: a dispute pauses reminders automatically","This demo uses fictional contacts only; real test emails go to one inbox you control"],
+    ctaTitle:"See it work with real emails", ctaSub:"Open the demo, send a reminder and watch it arrive in the test inbox.",
+    footer:"SolarWake · Hackathon demo · AI by Claude (Anthropic)" },
+  de:{ skip:"Zum Inhalt springen", nav:["Produkt","So funktioniert's","Lösungen","Vertrauen"], signin:"Anmelden", book:"Demo buchen",
+    eyebrow:"Umsatz zurückholen für Solarinstallateure", h1:"Werden Sie für Solararbeit bezahlt, die Sie schon erledigt haben",
+    sub:"Der KI-Agent von SolarWake fasst bei Angeboten nach, die eingeschlafen sind, und bei Rechnungen, die noch offen sind: per E-Mail oder WhatsApp, im passenden Ton für Privat- und Geschäftskunden.",
+    cta:"Live-Demo testen", cta2:"So funktioniert's",
+    intro:"Ein KI-Agent für das Geld, das sonst durch die Lappen geht.",
+    stats:["an Angeboten warten in der Demo-Pipeline","überfällige Rechnungen für eine freundliche Erinnerung","echte Personen angeschrieben: alle Demo-Kontakte sind fiktiv"],
+    productTitle:"Drei Werkzeuge, eine Plattform", open:"In der Demo öffnen",
+    products:[["Angebote reaktivieren","Spricht Interessenten erneut an, die ein Angebot erhalten und sich nicht gemeldet haben, beantwortet Fragen und bucht ein Beratungsgespräch."],
+      ["Zahlungserinnerungen","Höfliche Erinnerungen, die nach dem Fälligkeitsdatum bestimmter werden, mit Bezahl-Link, Ratenzahlung und KI-Antworten."],
+      ["Transaktionsjournal","Alle Zahlungseingänge und -ausgänge, nach beliebigem Zeitraum gefiltert, fehlende Belege markiert für Ihre Buchhaltung."]],
+    howTitle:"So funktioniert's",
+    how:[["Daten verbinden","Angebote und Rechnungen aus CRM oder Buchhaltung importieren."],["Playbook wählen","Privatkunden bekommen einen warmen, einfachen Ton. Firmen bekommen Rechnungs- und Bestellnummern und ihre Buchhaltung."],
+      ["Agent fasst nach","E-Mails und WhatsApps gehen planmäßig raus. Die KI versteht Antworten: schon bezahlt, Raten gewünscht, es gibt ein Problem."],["Bezahlt werden, prüfbereit bleiben","Termine werden gebucht, Rechnungen bezahlt und jede Transaktion mit Beleg protokolliert."]],
+    solTitle:"Für beide Seiten Ihres Geschäfts",
+    b2c:["Privatkunden (B2C)",["Freundlicher Ton, beim Vornamen, ohne Fachjargon","Ersparnis-Seite und 3 Monatsraten","WhatsApp oder E-Mail, ganz wie gewünscht"]],
+    b2b:["Geschäftskunden (B2B)",["Schreibt an die Kreditorenbuchhaltung","Nennt Rechnungs- und Bestellnummern, bietet Kontoauszüge an","Bucht Termine mit CFO oder Inhaber"]],
+    trustTitle:"Vertrauen und Datenschutz",
+    trust:["Abmeldelink in jeder Nachricht und ein Versandlimit pro Kunde","Jede Nachricht, Antwort und Zahlung wird für Prüfungen protokolliert","Probleme gehen an einen Menschen: Reklamationen pausieren Erinnerungen automatisch","Diese Demo nutzt nur fiktive Kontakte; echte Test-E-Mails gehen an ein Postfach Ihrer Wahl"],
+    ctaTitle:"Mit echten E-Mails ausprobieren", ctaSub:"Demo öffnen, Erinnerung senden und zusehen, wie sie im Test-Postfach ankommt.",
+    footer:"SolarWake · Hackathon-Demo · KI von Claude (Anthropic)" },
+};
+
+// Our own rooftop illustration (no stock photo), drawn to sit behind the hero text.
+function HeroArt(){
+  return (
+    <svg viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style={{position:"absolute",inset:0,width:"100%",height:"100%"}}>
+      <defs>
+        <linearGradient id="lp-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#FFE3A3"/><stop offset=".6" stopColor="#FFF3D6"/><stop offset="1" stopColor="#FDE7C7"/></linearGradient>
+        <radialGradient id="lp-sun" cx="0.16" cy="0.12" r="0.6"><stop offset="0" stopColor="#FFFBEB"/><stop offset=".25" stopColor="#FFD58A" stopOpacity=".85"/><stop offset="1" stopColor="#FFD58A" stopOpacity="0"/></radialGradient>
+        <linearGradient id="lp-glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#3B5FC4"/><stop offset="1" stopColor="#1E3A8A"/></linearGradient>
+      </defs>
+      <rect width="1200" height="600" fill="url(#lp-sky)"/>
+      <rect width="1200" height="600" fill="url(#lp-sun)"/>
+      {[0,1,2,3].map(i=><polygon key={i} points={`190,70 ${700+i*120},600 ${760+i*120},600`} fill="#fff" opacity=".18"/>)}
+      <path d="M0 470 Q300 420 600 455 T1200 440 V600 H0Z" fill="#F7D9A8"/>
+      <rect x="1010" y="120" width="48" height="110" fill="#9A3412"/><rect x="1004" y="112" width="60" height="14" fill="#7C2D12"/>
+      <rect x="600" y="372" width="620" height="260" fill="#FBEBD5"/>
+      <rect x="660" y="430" width="90" height="80" rx="4" fill="#FEF7EC" stroke="#E8C9A0" strokeWidth="6"/>
+      <rect x="820" y="430" width="90" height="80" rx="4" fill="#FEF7EC" stroke="#E8C9A0" strokeWidth="6"/>
+      <g transform="translate(600 372) skewX(-38)">
+        <rect x="0" y="-212" width="620" height="212" fill="#C2611F"/>
+        {Array.from({ length:11 },(_,i)=><line key={i} x1="0" x2="620" y1={-i*19-6} y2={-i*19-6} stroke="#9A4512" strokeOpacity=".45" strokeWidth="2"/>)}
+        {Array.from({ length:3 },(_,r)=>Array.from({ length:7 },(_,c)=>(
+          <g key={`${r}-${c}`}>
+            <rect x={36+c*74} y={-190+r*60} width="66" height="52" fill="url(#lp-glass)" stroke="#BFDBFE" strokeWidth="2"/>
+            <line x1={36+c*74+22} x2={36+c*74+22} y1={-190+r*60} y2={-138+r*60} stroke="#93C5FD" strokeOpacity=".5"/>
+            <line x1={36+c*74+44} x2={36+c*74+44} y1={-190+r*60} y2={-138+r*60} stroke="#93C5FD" strokeOpacity=".5"/>
+          </g>
+        )))}
+        <polygon points="36,-190 300,-190 120,-10 36,-10" fill="#fff" opacity=".12"/>
+        <rect x="-8" y="-6" width="636" height="12" fill="#7C2D12"/>
+      </g>
+      <circle cx="1150" cy="430" r="80" fill="#65A30D"/><circle cx="1090" cy="470" r="60" fill="#4D7C0F"/><circle cx="1180" cy="500" r="70" fill="#3F6212"/>
+    </svg>
+  );
+}
+
+function Landing({ lang, setLang, openApp }){
+  const t=LT[lang];
+  const pipeline=CONTACTS.reduce((s,l)=>s+l.quote,0);
+  const overdueN=INITIAL_INVOICES.filter(i=>!i.paid&&invDays(i)>0).length;
+  const ids=["product","how","solutions","trust"];
+  const O="#C2410C";
+  const Ico=({d})=><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={O} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>;
+  const icons=[<Ico d={<><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></>}/>,<Ico d={<><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></>}/>,<Ico d={<><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></>}/>];
+  const tabs=["console","invoices","ledger"];
+  return (
+    <div className="lp">
+      <a href="#main" className="lp-skip">{t.skip}</a>
+      <header style={{position:"sticky",top:0,zIndex:20,background:"rgba(255,255,255,.95)",backdropFilter:"blur(6px)",borderBottom:"1px solid #F3F4F6"}}>
+        <nav className="lp-nav" aria-label="Main" style={{maxWidth:1200,margin:"0 auto",padding:"12px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+          <a href="#" onClick={e=>{e.preventDefault();window.scrollTo(0,0);}} style={{display:"flex",alignItems:"center",gap:8,fontWeight:800,fontSize:19,color:"#111827"}}>
+            <span aria-hidden="true" style={{width:30,height:30,borderRadius:999,background:"radial-gradient(circle,#FDBA74,#C2410C)",display:"inline-block"}}/><span>Solar<span style={{color:O}}>Wake</span></span>
+          </a>
+          <div className="lp-links" style={{display:"flex",gap:26}}>{t.nav.map((n,i)=><a key={n} href={`#${ids[i]}`}>{n}</a>)}</div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <label className="lp-sr" htmlFor="lp-lang">Language</label>
+            <select id="lp-lang" value={lang} onChange={e=>setLang(e.target.value)} style={{border:"1px solid #E5E7EB",borderRadius:8,padding:"6px 8px",fontSize:13,background:"#fff",color:"#111827"}}>
+              <option value="en">English</option><option value="de">Deutsch</option>
+            </select>
+            <button className="lp-link" onClick={()=>openApp("console")}>{t.signin}</button>
+            <button className="lp-soft" onClick={()=>openApp("console")}>{t.book}</button>
+          </div>
+        </nav>
+      </header>
+
+      <main id="main">
+        <section style={{position:"relative",overflow:"hidden",minHeight:540,display:"flex",alignItems:"center"}}>
+          <HeroArt/>
+          <div className="lp-fade" style={{position:"absolute",inset:0}}/>
+          <div style={{position:"relative",maxWidth:1200,width:"100%",margin:"0 auto",padding:"70px 20px"}}>
+            <div style={{maxWidth:580}}>
+              <p style={{color:"#15803D",fontWeight:800,letterSpacing:1.2,fontSize:12.5,textTransform:"uppercase",margin:"0 0 14px"}}>{t.eyebrow}</p>
+              <h1 style={{fontSize:"clamp(34px,5vw,54px)",lineHeight:1.08,letterSpacing:-1.2,margin:"0 0 18px",fontWeight:800}}>{t.h1}</h1>
+              <p style={{fontSize:17,lineHeight:1.6,color:"#374151",margin:"0 0 26px"}}>{t.sub}</p>
+              <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                <button className="lp-btn" onClick={()=>openApp("console")}>{t.cta} <span aria-hidden="true">→</span></button>
+                <a className="lp-ghost" href="#how">{t.cta2}</a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section style={{maxWidth:1200,margin:"0 auto",padding:"80px 20px 40px"}}>
+          <div style={{position:"relative",maxWidth:640,marginBottom:44}}>
+            <span aria-hidden="true" style={{position:"absolute",left:-22,top:-26,width:90,height:90,borderRadius:999,background:"#FDE68A"}}/>
+            <h2 style={{position:"relative",fontSize:"clamp(24px,3vw,32px)",lineHeight:1.25,margin:0,fontWeight:800}}>{t.intro}</h2>
+          </div>
+          <div className="lp-3" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:30}}>
+            {[eur(pipeline), String(overdueN), "0"].map((v,i)=>(
+              <div key={i}>{icons[i]}<div style={{fontSize:40,fontWeight:800,letterSpacing:-1,margin:"10px 0 4px"}}>{v}</div><div style={{color:"#4B5563",fontSize:14.5}}>{t.stats[i]}</div></div>
+            ))}
+          </div>
+        </section>
+
+        <section id="product" style={{background:"#F9FAFB",padding:"70px 20px"}}>
+          <div style={{maxWidth:1200,margin:"0 auto"}}>
+            <h2 style={{fontSize:32,margin:"0 0 28px",fontWeight:800}}>{t.productTitle}</h2>
+            <div className="lp-3" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20}}>
+              {t.products.map(([h,d],i)=>(
+                <article key={h} style={{background:"#fff",border:"1px solid #E5E7EB",borderRadius:18,padding:24,display:"flex",flexDirection:"column"}}>
+                  <div style={{width:44,height:44,borderRadius:12,background:"#FFF7ED",display:"grid",placeItems:"center",marginBottom:14}}>{icons[i]}</div>
+                  <h3 style={{margin:"0 0 8px",fontSize:19}}>{h}</h3>
+                  <p style={{margin:"0 0 18px",color:"#4B5563",lineHeight:1.6,fontSize:14.5,flex:1}}>{d}</p>
+                  <button className="lp-link" style={{alignSelf:"flex-start",color:O,padding:0}} onClick={()=>openApp(tabs[i])}>{t.open} →</button>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="how" style={{maxWidth:1200,margin:"0 auto",padding:"70px 20px"}}>
+          <h2 style={{fontSize:32,margin:"0 0 28px",fontWeight:800}}>{t.howTitle}</h2>
+          <ol className="lp-4" style={{listStyle:"none",padding:0,margin:0,display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:20}}>
+            {t.how.map(([h,d],i)=>(
+              <li key={h}><div style={{width:38,height:38,borderRadius:999,background:O,color:"#fff",display:"grid",placeItems:"center",fontWeight:800,marginBottom:12}}>{i+1}</div>
+                <h3 style={{margin:"0 0 6px",fontSize:17}}>{h}</h3><p style={{margin:0,color:"#4B5563",lineHeight:1.6,fontSize:14.5}}>{d}</p></li>
+            ))}
+          </ol>
+        </section>
+
+        <section id="solutions" style={{background:"#FFF7ED",padding:"70px 20px"}}>
+          <div style={{maxWidth:1200,margin:"0 auto"}}>
+            <h2 style={{fontSize:32,margin:"0 0 28px",fontWeight:800}}>{t.solTitle}</h2>
+            <div className="lp-cols" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+              {[["🏠",t.b2c],["🏢",t.b2b]].map(([ic,[h,list]])=>(
+                <div key={h} style={{background:"#fff",borderRadius:18,padding:26,border:"1px solid #FED7AA"}}>
+                  <h3 style={{margin:"0 0 12px",fontSize:20}}><span aria-hidden="true">{ic}</span> {h}</h3>
+                  <ul style={{margin:0,paddingLeft:20,color:"#374151",lineHeight:1.9,fontSize:15}}>{list.map(x=><li key={x}>{x}</li>)}</ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="trust" style={{maxWidth:1200,margin:"0 auto",padding:"70px 20px"}}>
+          <h2 style={{fontSize:32,margin:"0 0 22px",fontWeight:800}}>{t.trustTitle}</h2>
+          <ul className="lp-cols" style={{listStyle:"none",padding:0,margin:0,display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            {t.trust.map(x=><li key={x} style={{display:"flex",gap:10,fontSize:15,color:"#374151",lineHeight:1.5}}><span aria-hidden="true" style={{color:"#15803D",fontWeight:800}}>✓</span>{x}</li>)}
+          </ul>
+        </section>
+
+        <section style={{padding:"0 20px 70px"}}>
+          <div style={{maxWidth:1200,margin:"0 auto",background:"#111827",color:"#fff",borderRadius:24,padding:"44px 34px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:20,flexWrap:"wrap"}}>
+            <div><h2 style={{margin:"0 0 6px",fontSize:28}}>{t.ctaTitle}</h2><p style={{margin:0,color:"#D1D5DB"}}>{t.ctaSub}</p></div>
+            <button className="lp-btn" onClick={()=>openApp("invoices")}>{t.cta} <span aria-hidden="true">→</span></button>
+          </div>
+        </section>
+      </main>
+      <footer style={{borderTop:"1px solid #E5E7EB",padding:"22px 20px",textAlign:"center",color:"#6B7280",fontSize:13}}>{t.footer}</footer>
+    </div>
   );
 }
 
