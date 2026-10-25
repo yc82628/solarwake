@@ -180,7 +180,7 @@ const PLAYBOOKS = {
   Residential: {
     tag:"B2C", label:"Homeowner playbook", color:C.b2c, icon:"🏠",
     focus:"Bill savings · financing · price-lock deadline",
-    quick:["Oh right, I forgot about this","It's honestly a bit expensive","I already got another quote","Does it really lower my bill?","Ok sure — when can we talk?"],
+    quick:["Oh right, I forgot about this","It's honestly a bit expensive","I already got another quote","Does it really lower my bill?","Ok sure — when can we talk?","Please stop messaging me"],
     replies:["Oh right, I forgot about this — still interested actually","Is the price still the same?","Hmm, how much would I really save?"],
     opener:{
       whatsapp:(l,co)=>({ text:`Hi ${first(l.name)}! 👋 It's Lina from ${co.name}. A while back we put together a solar quote for your home — your price is still held for ${ECON.priceLockDays} more days, so I wanted to check in. Are you still thinking about going solar? ☀️` }),
@@ -198,7 +198,7 @@ ${JSON_RULES}`,
   Commercial: {
     tag:"B2B", label:"Business playbook", color:C.b2b, icon:"🏢",
     focus:"ROI & payback · depreciation · ESG · decision-maker",
-    quick:["Send me the ROI numbers","Cash flow is tight this year","Our CFO needs to sign off","What's the payback period?","Fine — book a call with our CFO"],
+    quick:["Send me the ROI numbers","Cash flow is tight this year","Our CFO needs to sign off","What's the payback period?","Fine — book a call with our CFO","Please remove us from your list"],
     replies:["Yes, still on our list. What would the payback be?","Send over the updated numbers please","Timing is tricky, but let's hear it"],
     opener:{
       whatsapp:(l,co)=>({ text:`Hello ${l.dm?first(l.dm):"there"}, this is Lina from ${co.name} Business Energy. We prepared a ${l.kw} kW rooftop proposal for ${l.name} a few weeks ago — with current power prices the business case has improved. Is energy cost still on your agenda this year?` }),
@@ -357,9 +357,9 @@ const BILLING = [
 
 const INITIAL_INVOICES = (()=>{
   let n=100; const out=[];
-  BILLING.forEach(c=>c.inv.forEach(([milestone,pct,issuedAgo,terms,paidAgo,method])=>{
+  BILLING.forEach((c,ci)=>c.inv.forEach(([milestone,pct,issuedAgo,terms,paidAgo,method])=>{
     const issued=daysFrom(-issuedAgo); n++;
-    out.push({ id:`INV-${issued.getFullYear()}-${String(n).padStart(4,"0")}`, co:c.co, name:c.name, seg:c.seg, contact:c.contact, email:c.email, dm:c.dm, po:c.po, kw:c.kw,
+    out.push({ id:`INV-${issued.getFullYear()}-${String(n).padStart(4,"0")}`, cid:`K-${String(ci+1).padStart(2,"0")}`, co:c.co, name:c.name, seg:c.seg, contact:c.contact, email:c.email, dm:c.dm, po:c.po, kw:c.kw,
       milestone, pct, amount:Math.round(c.total*pct), issued:ymd(issued), due:ymd(daysFrom(terms-issuedAgo)), terms,
       paid:paidAgo==null?null:ymd(daysFrom(-paidAgo)), method:method||null, flag:null, sent:[] });
   }));
@@ -391,7 +391,7 @@ function ladderStep(inv, steps){
 }
 const reminderDue = (inv, steps) => { const st=ladderStep(inv,steps); return !!st && !inv.flag && !inv.sent.some(s=>s.key===st.key); };
 
-const PAY_QUICK = ["I already paid this last week","Can we split it into instalments?","There's a problem with the installation","I'll pay on Friday","Please send me the invoice again"];
+const PAY_QUICK = ["I already paid this last week","Can we split it into instalments?","There's a problem with the installation","I'll pay on Friday","Please send me the invoice again","Stop sending me reminders"];
 
 function classifyReply(text){
   const t=text.toLowerCase();
@@ -530,6 +530,38 @@ function presetRange(key, s){
   }
 }
 
+// ================== SENDING RULES: unsubscribes, sending limit, quiet hours ==================
+// Proactive messages (openers, campaigns, reminders) must pass all three rules, on email and WhatsApp.
+// Replies to a customer's own message are always allowed, unless that contact unsubscribed.
+const POLICY_DEFAULT = { start:8, end:21, b2bWeekdays:true, b2cWeekdays:false, capN:1, capDays:3 };
+function loadJSON(key, fallback){ try{ const v=JSON.parse(localStorage.getItem(key)); return v==null?fallback:v; }catch{ return fallback; } }
+function saveJSON(key, value){ try{ localStorage.setItem(key, JSON.stringify(value)); }catch{} }
+const fmtWhen = d => d.toLocaleString("en-GB",{ weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" });
+const hh = h => `${String(h).padStart(2,"0")}:00`;
+
+function isQuiet(d, seg, p){
+  const weekend=d.getDay()===0||d.getDay()===6;
+  if(weekend&&(seg==="Commercial"?p.b2bWeekdays:p.b2cWeekdays)) return true;
+  const h=d.getHours()+d.getMinutes()/60;
+  return h<p.start||h>=p.end;
+}
+function nextWindow(from, seg, p){
+  const t=new Date(from); t.setSeconds(0,0); t.setMinutes(Math.ceil(t.getMinutes()/15)*15);
+  for(let i=0;i<8*96&&isQuiet(t,seg,p);i++) t.setMinutes(t.getMinutes()+15);
+  return t;
+}
+
+// Replying STOP (or similar) unsubscribes, like the link in every email.
+const STOP_WORDS = /\b(stop|unsubscribe|opt[ -]?out|abmelden)\b|remove (me|us) from/i;
+const contactKey = x => x.cid || x.id;
+function contactInfo(key){
+  const l=CONTACTS.find(c=>c.id===key);
+  if(l) return { key, name:l.dm?dmName(l):l.name, org:l.seg==="Commercial"?l.name:null, email:l.email, co:coOf(l), seg:l.seg, about:"your solar quote" };
+  const i=INITIAL_INVOICES.find(x=>x.cid===key);
+  if(i) return { key, name:i.contact, org:i.seg==="Commercial"?i.name:null, email:i.email, co:coOf(i), seg:i.seg, about:"your invoices" };
+  return null;
+}
+
 // ================== ICONS ==================
 function Icon({d,size=18,color="currentColor",fill="none"}){
   return <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>;
@@ -566,6 +598,7 @@ const SEED_ACTIVITY = [
 const QS = (()=>{ try{ return new URLSearchParams(location.search); }catch{ return new URLSearchParams(); } })();
 const DEEP_LEAD = CONTACTS.some(c=>c.id===QS.get("p")) ? QS.get("p") : null;
 const DEEP_INV = INITIAL_INVOICES.some(i=>i.id===QS.get("i")) ? QS.get("i") : null;
+const DEEP_UNSUB = contactInfo(QS.get("u")||"") ? QS.get("u") : null;
 const START_LEAD = CONTACTS.find(c=>c.id===(DEEP_LEAD||FIRST_LEAD));
 const START_CO = DEEP_INV ? INITIAL_INVOICES.find(i=>i.id===DEEP_INV).co : START_LEAD.co;
 let msgSeq=0;
@@ -607,6 +640,13 @@ function App(){
   const [demoMode,setDemoMode]=useState(false);
   const [campaign,setCampaign]=useState(false);
   const [emailCfg,setEmailCfg]=useState({ enabled:false, inbox:null });
+  const [policy,setPolicy]=useState(()=>({ ...POLICY_DEFAULT, ...loadJSON("sw-policy",{}) }));
+  const [optOuts,setOptOuts]=useState(()=>loadJSON("sw-optouts",{}));   // contact key -> date unsubscribed
+  const [held,setHeld]=useState([]);                                     // messages waiting for quiet hours to end
+  const [showRules,setShowRules]=useState(false);
+  const [unsub,setUnsub]=useState(DEEP_UNSUB?{ key:DEEP_UNSUB, fromApp:false }:null);
+  const outboxRef=useRef({});   // contact key -> timestamps of proactive messages (for the sending limit)
+  const heldRef=useRef([]);
   const mailQueue=useRef(Promise.resolve());
   const busy=useRef(new Set());
   const timers=useRef([]);
@@ -643,7 +683,18 @@ function App(){
     const onHash=()=>setPage(location.hash.startsWith("#app")?"app":"landing");
     window.addEventListener("hashchange",onHash); return ()=>window.removeEventListener("hashchange",onHash);
   },[]);
-  useEffect(()=>{ document.body.style.background=page==="landing"?"#fff":C.night; document.documentElement.lang=page==="landing"?lang:"en"; },[page,lang]);
+  useEffect(()=>{ document.body.style.background=page==="landing"||unsub?"#fff":C.night; document.documentElement.lang=page==="landing"&&!unsub?lang:"en"; },[page,lang,unsub]);
+  useEffect(()=>saveJSON("sw-policy",policy),[policy]);
+  // An unsubscribe in another tab of this browser (e.g. the link in a real email) updates this one.
+  useEffect(()=>{
+    const onStore=e=>{ if(e.key==="sw-optouts") setOptOuts(loadJSON("sw-optouts",{})); };
+    window.addEventListener("storage",onStore); return ()=>window.removeEventListener("storage",onStore);
+  },[]);
+  // Release messages held for quiet hours once the sending window opens.
+  useEffect(()=>{
+    const t=setInterval(()=>{ const now=Date.now(); heldRef.current.filter(h=>h.at<=now).forEach(h=>releaseHeld(h,false)); },20000);
+    return ()=>clearInterval(t);
+  },[demoMode,emailCfg,optOuts]);
 
   const setLang=l=>{ setLangState(l); try{ localStorage.setItem("sw-lang",l); }catch{} };
   function openApp(t){ setTab(t||"console"); setPage("app"); if(location.hash!=="#app") location.hash="app"; window.scrollTo(0,0); }
@@ -683,7 +734,7 @@ function App(){
   // server redirects every email to the test inbox. Sends are spaced out to stay under Resend's rate limit.
   function deliver(l, msg){
     if(l.channel!=="email") return;
-    mailOut({ to:l.email, subject:msg.subject, text:msg.text, fromName:`Lina · ${coOf(l).name}` }, l.name,
+    mailOut({ to:l.email, subject:msg.subject, text:msg.text, fromName:`Lina · ${coOf(l).name}`, contactId:l.id, company:coOf(l).name }, l.name,
       d=>setConvo(l.id,ms=>ms.map(m=>m.id===msg.id?{ ...m, delivery:d }:m)));
   }
   function mailOut(payload, who, mark){
@@ -701,15 +752,55 @@ function App(){
        .catch(e=>{ mark({ state:"error", note:e.message }); log(`⚠ Email for ${who} not sent: ${e.message}`,"sys"); });
   }
 
+  // ---------- Sending rules: unsubscribes, sending limit, quiet hours ----------
+  // Returns null when a message may go out now, otherwise why not (quiet hours also say when).
+  function sendRule(target, proactive){
+    const key=contactKey(target);
+    if(optOuts[key]) return { kind:"optout", text:`${target.name} unsubscribed on ${fmtD(optOuts[key])}: nothing sent` };
+    if(!proactive) return null;
+    const now=Date.now(), win=policy.capDays*864e5;
+    const recent=(outboxRef.current[key]||[]).filter(t=>now-t<win);
+    if(recent.length>=policy.capN) return { kind:"cap", text:`Sending limit (${policy.capN} per ${policy.capDays} day${policy.capDays>1?"s":""}) reached for ${target.name}: next allowed ${fmtWhen(new Date(Math.min(...recent)+win))}` };
+    if(isQuiet(new Date(),target.seg,policy)){ const at=nextWindow(new Date(),target.seg,policy); return { kind:"quiet", at, text:`Quiet hours: scheduled for ${fmtWhen(at)}` }; }
+    return null;
+  }
+  const noteSent=key=>{ outboxRef.current={ ...outboxRef.current, [key]:[...(outboxRef.current[key]||[]), Date.now()] }; };
+  const markMsg=(kind,id,mid,d)=>(kind==="lead"?setConvo:setInvConvo)(id,ms=>ms.map(m=>m.id===mid?{ ...m, delivery:d }:m));
+  function holdMsg(kind, target, msg, at){
+    heldRef.current=[...heldRef.current,{ kind, id:target.id, key:contactKey(target), target, msg, at:at.getTime() }];
+    setHeld(heldRef.current);
+  }
+  function releaseHeld(h, override){
+    heldRef.current=heldRef.current.filter(x=>x.msg.id!==h.msg.id); setHeld(heldRef.current);
+    noteSent(h.key);
+    markMsg(h.kind,h.id,h.msg.id,{ state:"released", override });
+    if(h.kind==="lead") deliver(h.target,h.msg); else deliverInv(h.target,h.msg);
+    log(`⏰ ${override?"Staff override: sent":"Quiet hours over: sent"} the held message to ${h.target.name}`,"out");
+  }
+  function sendNow(mid){ const h=heldRef.current.find(x=>x.msg.id===mid); if(h) releaseHeld(h,true); }
+  function optOut(key, how){
+    setOptOuts(o=>{ if(o[key]) return o; const n={ ...o, [key]:ymd(today0()) }; saveJSON("sw-optouts",n); return n; });
+    heldRef.current.filter(h=>h.key===key).forEach(h=>markMsg(h.kind,h.id,h.msg.id,{ state:"cancelled", note:"Cancelled: contact unsubscribed" }));
+    heldRef.current=heldRef.current.filter(h=>h.key!==key); setHeld(heldRef.current);
+    const c=contactInfo(key); log(`🚫 ${c?c.name:key} unsubscribed (${how}): all messages stopped`,"in");
+  }
+  function resubscribe(key){
+    setOptOuts(o=>{ const n={ ...o }; delete n[key]; saveJSON("sw-optouts",n); return n; });
+    const c=contactInfo(key); log(`✓ ${c?c.name:key} resubscribed`,"sys");
+  }
+  function openUnsub(key){ setUnsub({ key, fromApp:true }); window.scrollTo(0,0); }
+
   // ---------- Invoices: payment reminders, smart replies, payments ----------
   const setInvConvo=(id,fn)=>setInvConvos(c=>({ ...c, [id]:fn(c[id]||[]) }));
   const patchInv=(id,patch)=>setInvoices(v=>v.map(i=>i.id===id?{ ...i, ...patch }:i));
-  const deliverInv=(inv,msg)=>mailOut({ to:inv.email, subject:msg.subject, text:msg.text, fromName:`${coOf(inv).name} Billing` }, inv.name,
+  const deliverInv=(inv,msg)=>mailOut({ to:inv.email, subject:msg.subject, text:msg.text, fromName:`${coOf(inv).name} Billing`, contactId:inv.cid, company:coOf(inv).name }, inv.name,
     d=>setInvConvo(inv.id,ms=>ms.map(m=>m.id===msg.id?{ ...m, delivery:d }:m)));
   const addTxn=t=>setTxns(v=>[{ id:`TX-L${Date.now()}${Math.floor(Math.random()*1000)}`, date:ymd(today0()), ...t }, ...v]);
 
   async function sendReminder(inv, step){
     if(busy.current.has(inv.id)) return;
+    const rule=sendRule(inv,true);
+    if(rule&&rule.kind!=="quiet"){ flash(rule.text,C.panel2); log(`🛡 ${inv.id}: ${rule.text}`,"sys"); return; }
     step=step||ladderStep(inv,ladder)||ladder[0];
     busy.current.add(inv.id); setInvTyping(inv.id);
     const co=coOf(inv);
@@ -719,11 +810,12 @@ function App(){
       try{ text=parseBilling(await callClaude(billingSystem(inv,co,step),[{ role:"user", content:`(Write the "${step.name}" email for this invoice now.)` }])).message; }
       catch{ text=reminderScript(inv,co,step); }
     }
-    const msg={ id:msgId(), role:"agent", text, subject:reminderSubject(inv,step), time:now(), step:step.name };
+    const msg={ id:msgId(), role:"agent", text, subject:reminderSubject(inv,step), time:now(), step:step.name,
+      delivery:rule?{ state:"held", note:rule.text }:undefined };
     setInvConvo(inv.id,m=>[...m,msg]);
-    deliverInv(inv,msg);
+    if(rule){ holdMsg("inv",inv,msg,rule.at); log(`⏰ ${step.name} for ${inv.id}: ${rule.text}`,"sys"); }
+    else{ noteSent(inv.cid); deliverInv(inv,msg); log(`📨 ${step.name} sent for ${inv.id} (${inv.name})`,"out"); }
     setInvoices(v=>v.map(i=>i.id===inv.id?{ ...i, sent:[...i.sent,{ key:step.key, date:ymd(today0()) }] }:i));
-    log(`📨 ${step.name} sent for ${inv.id} (${inv.name})`,"out");
     setInvTyping(t=>t===inv.id?null:t); busy.current.delete(inv.id);
   }
 
@@ -743,8 +835,16 @@ function App(){
   }
 
   async function invAgentReply(inv, history){
+    const co=coOf(inv), last=history[history.length-1].text;
+    if(STOP_WORDS.test(last)&&!optOuts[inv.cid]){
+      optOut(inv.cid,"replied STOP");
+      setInvConvo(inv.id,()=>[...history,{ id:msgId(), role:"agent", time:now(), subject:history[0].subject?`Re: ${history[0].subject}`:undefined,
+        text:`${billHi(inv)}\n\nUnderstood. We've stopped all reminder emails to you. ${inv.id} stays payable whenever suits you:\n${payUrl(inv,co)}\n\n${billSign(co)}`,
+        delivery:{ state:"off", note:"Confirmation of the unsubscribe; no further emails" } }]);
+      return;
+    }
+    if(optOuts[inv.cid]){ log(`🚫 ${inv.name} is unsubscribed: no reply sent`,"sys"); return; }
     busy.current.add(inv.id); setInvTyping(inv.id);
-    const co=coOf(inv);
     let intent=classifyReply(history[history.length-1].text), text, promise=null;
     if(!USE_CLAUDE||demoMode){ await sleep(800); text=replyScript(inv,co,intent); }
     else{
@@ -787,10 +887,13 @@ function App(){
 
   function start(){
     if(started||!lead) return;
-    const msg=openerMsg(lead);
+    const rule=sendRule(lead,true);
+    if(rule&&rule.kind!=="quiet"){ flash(rule.text,C.panel2); log(`🛡 ${rule.text}`,"sys"); return; }
+    const msg={ ...openerMsg(lead), delivery:rule?{ state:"held", note:rule.text }:undefined };
     setConvo(lead.id,()=>[msg]);
-    deliver(lead, msg);
     if(lead.status==="Cold") setLeadStatus(lead.id,"Contacting");
+    if(rule){ holdMsg("lead",lead,msg,rule.at); log(`⏰ ${lead.name}: ${rule.text}`,"sys"); return; }
+    noteSent(lead.id); deliver(lead, msg);
     log(sentLog(lead),"out");
   }
 
@@ -802,8 +905,18 @@ function App(){
 
   async function agentReply(l, history){
     if(busy.current.has(l.id)) return;
+    const co=coOf(l), play=PLAYBOOKS[l.seg], last=history[history.length-1].text;
+    if(STOP_WORDS.test(last)&&!optOuts[l.id]){
+      optOut(l.id,"replied STOP");
+      const body="Understood. You've been unsubscribed and won't hear from us again about this. All the best!";
+      const biz=l.seg==="Commercial";
+      setConvo(l.id,()=>[...history,{ id:msgId(), role:"agent", time:now(), subject:history[0].subject?`Re: ${history[0].subject}`:undefined,
+        text:l.channel==="email"?`${biz?`Dear ${dmName(l)}`:`Hi ${first(l.name)}`},\n\n${body}\n\n${signoff(co,biz)}`:body,
+        delivery:l.channel==="email"?{ state:"off", note:"Confirmation of the unsubscribe; no further emails" }:undefined }]);
+      return;
+    }
+    if(optOuts[l.id]) return;
     busy.current.add(l.id);
-    const co=coOf(l), play=PLAYBOOKS[l.seg];
     setTypingId(l.id);
     let reply=null;
     if(USE_CLAUDE&&!demoMode){
@@ -852,15 +965,17 @@ function App(){
     log(`🚀 Campaign launched — ${targets.length} dormant lead${targets.length>1?"s":""} at ${company.name} (${segFilter==="All"?"B2C + B2B":PLAYBOOKS[segFilter].tag})`,"sys");
     let last=0;
     targets.forEach((l,i)=>{
-      const play=PLAYBOOKS[l.seg];
+      const play=PLAYBOOKS[l.seg], rule=sendRule(l,true);
+      if(rule&&rule.kind!=="quiet"){ later(()=>log(`🛡 Skipped: ${rule.text}`,"sys"),400+i*450); return; }
+      if(!rule) noteSent(l.id);
       later(()=>{
-        const msg=openerMsg(l);
+        const msg={ ...openerMsg(l), delivery:rule?{ state:"held", note:rule.text }:undefined };
         setConvo(l.id,m=>m.length?m:[msg]);
-        deliver(l, msg);
         setLeadStatus(l.id,"Contacting");
-        log(sentLog(l),"out");
+        if(rule){ holdMsg("lead",l,msg,rule.at); log(`⏰ ${l.name}: ${rule.text}`,"sys"); }
+        else{ deliver(l, msg); log(sentLog(l),"out"); }
       }, 400+i*450);
-      if(hash(l.id)<0.6){
+      if(!rule&&hash(l.id)<0.6){
         const reply=play.replies[Math.floor(hash(l.id+"r")*play.replies.length)];
         const at=2600+i*700; last=Math.max(last,at);
         later(()=>{
@@ -884,9 +999,13 @@ function App(){
     setSegFilter("All"); setCompanyId("SW-001"); setLeadId(FIRST_LEAD);
     setInvoices(INITIAL_INVOICES); setInvConvos({}); setTxns(INITIAL_TXNS); setInvTyping(null);
     setLadder(LADDER.map(s=>({ ...s, on:true }))); setInvId(firstOpenInvoice(INITIAL_INVOICES,"SW-001"));
+    setOptOuts({}); saveJSON("sw-optouts",{}); outboxRef.current={}; heldRef.current=[]; setHeld([]);
   }
 
   const inv=invoices.find(i=>i.id===invId&&i.co===companyId)||invoices.find(i=>i.id===firstOpenInvoice(invoices,companyId));
+  if(unsub) return <UnsubscribePage info={contactInfo(unsub.key)} optedOut={!!optOuts[unsub.key]}
+    onConfirm={()=>optOut(unsub.key,"unsubscribe link")} onUndo={()=>resubscribe(unsub.key)}
+    onBack={unsub.fromApp?()=>setUnsub(null):null}/>;
   if(page==="landing") return <Landing lang={lang} setLang={setLang} openApp={openApp}/>;
 
   const sMeta={ Cold:{label:"Cold · dormant",color:C.sub,bg:"#1E2A44"},
@@ -920,6 +1039,10 @@ function App(){
               style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:emailCfg.enabled?"#BBF7D0":C.sub,background:C.panel,border:`1px solid ${emailCfg.enabled?C.green:C.line}`,padding:"7px 12px",borderRadius:999}}>
               ✉️ {emailCfg.enabled?`Live email → ${emailCfg.inbox}`:"Email: in-app only"}
             </div>
+            <button onClick={()=>setShowRules(v=>!v)} aria-expanded={showRules}
+              style={{display:"inline-flex",alignItems:"center",gap:7,fontSize:12,fontWeight:700,cursor:"pointer",color:showRules?C.night:C.text,background:showRules?C.gold:C.panel,border:`1px solid ${showRules?C.gold:C.line}`,padding:"7px 12px",borderRadius:999}}>
+              🛡 Sending rules{Object.keys(optOuts).length?` · ${Object.keys(optOuts).length} unsubscribed`:""}{held.length?` · ${held.length} held`:""}
+            </button>
           </div>
         </div>
 
@@ -937,9 +1060,11 @@ function App(){
           })}
         </div>
 
+        {showRules&&<SendingRules policy={policy} setPolicy={setPolicy} optOuts={optOuts} resubscribe={resubscribe} held={held} sendNow={sendNow} onClose={()=>setShowRules(false)}/>}
+
         {tab==="console" && (
           <Console {...{company,companyId,pickCompany,segFilter,setSegFilter,kpi,lead,leadId,pickLead,visibleLeads,messages,started,typing,pb,sMeta,
-            start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal,setChannel}} />
+            start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal,setChannel,optOuts,openUnsub,sendNow}} />
         )}
         {tab==="portal" && (
           <Portal key={lead?lead.id:"none"} lead={lead} company={company} companyLeads={companyLeads} pickLead={pickLead}
@@ -950,7 +1075,7 @@ function App(){
             invoices={invoices} inv={inv} setInvId={setInvId} ladder={ladder} setLadder={setLadder}
             convo={(inv&&invConvos[inv.id])||[]} typing={!!inv&&invTyping===inv.id}
             sendReminder={sendReminder} sendDue={sendDueReminders} customerSend={invCustomerSend}
-            markPaid={markInvoicePaid} openPay={openPortal}/>
+            markPaid={markInvoicePaid} openPay={openPortal} optOuts={optOuts} openUnsub={openUnsub} sendNow={sendNow}/>
         )}
         {tab==="pay" && (
           <PayPage key={inv?inv.id:"none"} invoices={invoices} inv={inv} setInvId={setInvId} companyId={companyId} setCompanyId={setCompanyId}
@@ -976,7 +1101,8 @@ function App(){
 // ================== B2B: INSTALLER CONSOLE ==================
 function Console(p){
   const { company,companyId,pickCompany,segFilter,setSegFilter,kpi,lead,leadId,pickLead,visibleLeads,messages,started,typing,pb,sMeta,
-    start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal,setChannel } = p;
+    start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal,setChannel,optOuts,openUnsub,sendNow } = p;
+  const optedOut=lead&&optOuts[lead.id];
   const brief=lead&&briefs[lead.id];
   const maxFunnel=Math.max(1,...kpi.funnel.map(f=>f.n));
   const coldCount=visibleLeads.filter(l=>l.status==="Cold").length;
@@ -1132,6 +1258,7 @@ function Console(p){
                       <span style={{fontSize:13,fontWeight:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{l.name}</span>
                       <SegBadge seg={l.seg} small/>
                       <span title={`Agent reaches this lead by ${CHANNELS[l.channel].label}`} style={{fontSize:11}}>{CHANNELS[l.channel].icon}</span>
+                      {optOuts[l.id]&&<span title="Unsubscribed" style={{fontSize:10,fontWeight:800,color:"#FCA5A5"}}>🚫 unsubscribed</span>}
                     </div>
                     <div style={{fontSize:11,color:C.sub}}>quoted {eur(l.quote)} · {l.days}d ago · {l.lost.toLowerCase()}</div>
                   </div>
@@ -1147,7 +1274,7 @@ function Console(p){
 
         {/* RIGHT — the lead's channel: email inbox or WhatsApp */}
         {lead&&lead.channel==="email" ? (
-          <EmailPane key={lead.id} {...{lead,messages,started,typing,pb,start,send,openPortal}}/>
+          <EmailPane key={lead.id} {...{lead,messages,started,typing,pb,start,send,openPortal,optedOut,openUnsub,sendNow}}/>
         ) : (
         <div style={{background:"#000",borderRadius:26,padding:8,boxShadow:"0 20px 50px rgba(0,0,0,.5)"}}>
           <div style={{background:C.waWall,borderRadius:20,overflow:"hidden",display:"flex",flexDirection:"column",height:640}}>
@@ -1173,7 +1300,8 @@ function Console(p){
                         {lead?<>This {lead.seg==="Commercial"?"business":"homeowner"} lead went cold {lead.days} days ago after a {eur(lead.quote)} quote. SolarWake will use the <b>{pb.label.toLowerCase()}</b>.</>:"Select a lead to begin."}
                       </div>
                       {lead&&(
-                        <button onClick={start} style={{display:"inline-flex",alignItems:"center",gap:8,background:C.waHeader,color:"#fff",border:"none",padding:"11px 20px",borderRadius:999,fontWeight:700,fontSize:14,cursor:"pointer"}}>▶ Start reactivation</button>
+                        optedOut ? <div style={{fontSize:13,fontWeight:700,color:"#B91C1C"}}>🚫 Unsubscribed on {fmtD(optedOut)}: no messages will be sent.</div>
+                        : <button onClick={start} style={{display:"inline-flex",alignItems:"center",gap:8,background:C.waHeader,color:"#fff",border:"none",padding:"11px 20px",borderRadius:999,fontWeight:700,fontSize:14,cursor:"pointer"}}>▶ Start reactivation</button>
                       )}
                     </>
                   )}
@@ -1185,6 +1313,7 @@ function Console(p){
                   <div key={i} className="sw-in" style={{alignSelf:mine?"flex-end":"flex-start",maxWidth:"84%"}}>
                     <div style={{background:mine?C.waOut:C.waIn,color:"#111",padding:"7px 10px 5px",borderRadius:9,
                       borderTopRightRadius:mine?2:9,borderTopLeftRadius:mine?9:2,boxShadow:"0 1px 1px rgba(0,0,0,.12)",fontSize:14,lineHeight:1.4}}>
+                      {!mine&&m.delivery&&<DeliveryNote d={m.delivery} onSendNow={()=>sendNow(m.id)}/>}
                       <ChatText text={m.text} onPortal={openPortal}/>
                       <span style={{float:"right",fontSize:10,color:"#8a9",marginLeft:8,marginTop:4}}>{m.time}{mine?" ✓✓":""}</span>
                     </div>
@@ -1242,7 +1371,7 @@ function Console(p){
 }
 
 // Email channel: an inbox-style thread. You reply as the business; the agent answers by email.
-function EmailPane({ lead, messages, started, typing, pb, start, send, openPortal }){
+function EmailPane({ lead, messages, started, typing, pb, start, send, openPortal, optedOut, openUnsub, sendNow }){
   const co=coOf(lead), biz=lead.seg==="Commercial";
   const [draft,setDraft]=useState("");
   const ref=useRef(null);
@@ -1263,6 +1392,7 @@ function EmailPane({ lead, messages, started, typing, pb, start, send, openPorta
         </div>
       </div>
       {subject&&<div style={{padding:"10px 14px",borderBottom:`1px solid ${line}`,fontWeight:800,fontSize:14.5}}>{subject}</div>}
+      {optedOut&&started&&<div style={{padding:"7px 14px",background:"#FEE2E2",color:"#991B1B",fontSize:12.5,fontWeight:700}}>🚫 Unsubscribed on {fmtD(optedOut)}: no further emails will be sent.</div>}
 
       <div ref={ref} style={{flex:1,overflowY:"auto",padding:12,display:"flex",flexDirection:"column",gap:10,background:"#F3F4F6"}}>
         {!started&&(
@@ -1274,7 +1404,8 @@ function EmailPane({ lead, messages, started, typing, pb, start, send, openPorta
                 <div style={{fontSize:13,marginBottom:14,lineHeight:1.5}}>
                   {biz?"Many businesses ignore vendor WhatsApps, so ":""}SolarWake will reach <b>{contact}</b> by email using the <b>{pb.label.toLowerCase()}</b>.
                 </div>
-                <button onClick={start} style={{background:"#1E3A8A",color:"#fff",border:"none",padding:"11px 20px",borderRadius:999,fontWeight:700,fontSize:14,cursor:"pointer"}}>✉️ Send reactivation email</button>
+                {optedOut ? <div style={{fontSize:13,fontWeight:700,color:"#B91C1C"}}>🚫 Unsubscribed on {fmtD(optedOut)}: no emails will be sent.</div>
+                  : <button onClick={start} style={{background:"#1E3A8A",color:"#fff",border:"none",padding:"11px 20px",borderRadius:999,fontWeight:700,fontSize:14,cursor:"pointer"}}>✉️ Send reactivation email</button>}
               </>
             )}
           </div>
@@ -1290,12 +1421,9 @@ function EmailPane({ lead, messages, started, typing, pb, start, send, openPorta
               <div style={{fontSize:11,color:muted,marginBottom:8,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                 {mine?`${lead.email} → ${agentEmail(co)}`:`${agentEmail(co)} → ${lead.email}`}
               </div>
-              {!mine&&m.delivery&&(
-                <div style={{fontSize:11,fontWeight:700,marginBottom:8,color:{ sent:"#15803D", error:"#B91C1C" }[m.delivery.state]||muted}}>
-                  {{ sent:"📨 Real email delivered to the test inbox", sending:"Sending real email…", error:`⚠ Not sent: ${m.delivery.note}` }[m.delivery.state]||m.delivery.note}
-                </div>
-              )}
+              {!mine&&<DeliveryNote d={m.delivery} onSendNow={()=>sendNow(m.id)}/>}
               <div style={{fontSize:13.5,lineHeight:1.5,whiteSpace:"pre-wrap",wordBreak:"break-word"}}><ChatText text={m.text} onPortal={openPortal}/></div>
+              {!mine&&<UnsubFooter onUnsub={()=>openUnsub(lead.id)}/>}
             </div>
           );
         })}
@@ -1529,7 +1657,7 @@ function Portal({ lead, company, companyLeads, pickLead, pickCompany, onBook, ba
 }
 
 // ================== B2B: INVOICES & PAYMENT REMINDERS ==================
-function MailCard({ m, mine, from, route, openLink }){
+function MailCard({ m, mine, from, route, openLink, onUnsub, onSendNow }){
   const muted="#6B7280";
   return (
     <div className="sw-in" style={{background:"#fff",border:"1px solid #E5E7EB",borderLeft:`3px solid ${mine?"#9CA3AF":"#1E3A8A"}`,borderRadius:10,padding:"10px 12px"}}>
@@ -1538,18 +1666,15 @@ function MailCard({ m, mine, from, route, openLink }){
         <span style={{color:muted,flexShrink:0}}>{m.time}</span>
       </div>
       <div style={{fontSize:11,color:muted,marginBottom:8,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{route}{m.step?` · ${m.step}`:""}</div>
-      {!mine&&m.delivery&&(
-        <div style={{fontSize:11,fontWeight:700,marginBottom:8,color:{ sent:"#15803D", error:"#B91C1C" }[m.delivery.state]||muted}}>
-          {{ sent:"📨 Real email delivered to the test inbox", sending:"Sending real email…", error:`⚠ Not sent: ${m.delivery.note}` }[m.delivery.state]||m.delivery.note}
-        </div>
-      )}
+      {!mine&&<DeliveryNote d={m.delivery} onSendNow={onSendNow}/>}
       <div style={{fontSize:13.5,lineHeight:1.5,whiteSpace:"pre-wrap",wordBreak:"break-word"}}><ChatText text={m.text} onPortal={openLink}/></div>
+      {!mine&&onUnsub&&<UnsubFooter onUnsub={onUnsub}/>}
     </div>
   );
 }
 
 function InvoicesView(p){
-  const { companyId, setCompanyId, invoices, inv, setInvId, ladder, setLadder, convo, typing, sendReminder, sendDue, customerSend, markPaid, openPay } = p;
+  const { companyId, setCompanyId, invoices, inv, setInvId, ladder, setLadder, convo, typing, sendReminder, sendDue, customerSend, markPaid, openPay, optOuts, openUnsub, sendNow } = p;
   const [filter,setFilter]=useState("All");
   const company=COMPANIES.find(c=>c.id===companyId);
   const coInv=invoices.filter(i=>i.co===companyId);
@@ -1561,7 +1686,7 @@ function InvoicesView(p){
   const maxB=Math.max(1,...buckets.map(b=>b.v));
   const FILTERS={ All:()=>true, Overdue:i=>!i.paid&&invDays(i)>0, "Due soon":i=>!i.paid&&invDays(i)<=0&&invDays(i)>=-7, Paid:i=>!!i.paid, "Needs attention":i=>!!i.flag&&!i.paid };
   const list=coInv.filter(FILTERS[filter]).sort((a,b)=>(a.paid?1:0)-(b.paid?1:0)||invDays(b)-invDays(a));
-  const dueList=coInv.filter(i=>reminderDue(i,ladder));
+  const dueList=coInv.filter(i=>reminderDue(i,ladder)&&!optOuts[i.cid]);
 
   return (
     <>
@@ -1640,7 +1765,7 @@ function InvoicesView(p){
                       <span style={{fontSize:13,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{i.name}</span>
                       <SegBadge seg={i.seg} small/>
                     </div>
-                    <div style={{fontSize:11,color:C.sub}}>{i.id} · {i.milestone} · due {fmtD(i.due)}{i.flag?` · ${i.flag}`:step&&!i.paid?` · next: ${step.name}`:""}</div>
+                    <div style={{fontSize:11,color:C.sub}}>{i.id} · {i.milestone} · due {fmtD(i.due)}{optOuts[i.cid]&&!i.paid?" · 🚫 unsubscribed":i.flag?` · ${i.flag}`:step&&!i.paid?` · next: ${step.name}`:""}</div>
                   </div>
                   <div style={{textAlign:"right",flexShrink:0}}>
                     <div style={{fontSize:13,fontWeight:800}}>{eur(i.amount)}</div>
@@ -1652,13 +1777,13 @@ function InvoicesView(p){
             {!list.length&&<div style={{fontSize:12,color:C.sub,padding:10}}>No invoices match this filter.</div>}
           </div>
         </div>
-        <InvoicePane key={inv?inv.id:"none"} {...{inv,convo,typing,ladder,sendReminder,customerSend,markPaid,openPay}}/>
+        <InvoicePane key={inv?inv.id:"none"} optedOut={inv&&optOuts[inv.cid]} {...{inv,convo,typing,ladder,sendReminder,customerSend,markPaid,openPay,openUnsub,sendNow}}/>
       </div>
     </>
   );
 }
 
-function InvoicePane({ inv, convo, typing, ladder, sendReminder, customerSend, markPaid, openPay }){
+function InvoicePane({ inv, convo, typing, ladder, sendReminder, customerSend, markPaid, openPay, optedOut, openUnsub, sendNow }){
   const [draft,setDraft]=useState("");
   const ref=useRef(null);
   useEffect(()=>{ if(ref.current) ref.current.scrollTop=ref.current.scrollHeight; },[convo.length,typing]);
@@ -1686,7 +1811,8 @@ function InvoicePane({ inv, convo, typing, ladder, sendReminder, customerSend, m
         {inv.flag&&!inv.paid&&<div style={{marginTop:6,display:"inline-block",fontSize:11.5,fontWeight:700,color:"#92400E",background:"#FEF3C7",padding:"3px 9px",borderRadius:999}}>⏸ {inv.flag}</div>}
         {!inv.paid&&(
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
-            <button onClick={()=>sendReminder(inv,step)} disabled={typing} style={{...btn("#1E3A8A","#fff"),opacity:typing?.5:1}}>📨 Send “{step.name}”</button>
+            {optedOut ? <span style={{...btn("#FEE2E2","#991B1B"),cursor:"default"}}>🚫 Unsubscribed {fmtD(optedOut)}</span>
+              : <button onClick={()=>sendReminder(inv,step)} disabled={typing} style={{...btn("#1E3A8A","#fff"),opacity:typing?.5:1}}>📨 Send “{step.name}”</button>}
             <button onClick={()=>markPaid(inv,"SEPA transfer","by bank transfer (marked manually)")} style={btn("#DCFCE7","#166534")}>✓ Mark as paid</button>
             <button onClick={()=>openPay(inv.id)} style={btn("#F3F4F6","#1F2937")}>Pay page ↗</button>
           </div>
@@ -1702,7 +1828,7 @@ function InvoicePane({ inv, convo, typing, ladder, sendReminder, customerSend, m
         )}
         {convo.map(m=>{
           const mine=m.role==="customer";
-          return <MailCard key={m.id} m={m} mine={mine} from={mine?inv.contact:`Lina · ${co.name} Billing`}
+          return <MailCard key={m.id} m={m} mine={mine} from={mine?inv.contact:`Lina · ${co.name} Billing`} onUnsub={()=>openUnsub(inv.cid)} onSendNow={()=>sendNow(m.id)}
             route={mine?`${inv.email} → ${billEmail(co)}`:`${billEmail(co)} → ${inv.email}`} openLink={openPay}/>;
         })}
         {typing&&<div style={{background:"#fff",border:`1px solid ${line}`,borderRadius:10,padding:"10px 12px",fontSize:12.5,color:muted}}><span className="sw-dots"><i/><i/><i/></span> Lina is drafting…</div>}
@@ -2023,7 +2149,7 @@ const LT = {
     b2c:["Homeowners (B2C)",["Friendly tone, first names, no jargon","Savings page and 3 monthly instalments","WhatsApp or email, whichever they prefer"]],
     b2b:["Businesses (B2B)",["Writes to the accounts payable team","Quotes invoice and PO numbers, offers statements","Books calls with the CFO or owner"]],
     trustTitle:"Trust and data protection",
-    trust:["An opt-out in every message and a sending limit per customer","Every message, reply and payment is logged for audits","Problems go to a human: a dispute pauses reminders automatically","This demo uses fictional contacts only; real test emails go to one inbox you control"],
+    trust:["An unsubscribe link in every email (or reply STOP), a sending limit per customer and quiet hours","Every message, reply and payment is logged for audits","Problems go to a human: a dispute pauses reminders automatically","This demo uses fictional contacts only; real test emails go to one inbox you control"],
     ctaTitle:"See it work with real emails", ctaSub:"Open the demo, send a reminder and watch it arrive in the test inbox.",
     footer:"SolarWake · Hackathon demo · Smart templates, no customer data" },
   de:{ skip:"Zum Inhalt springen", nav:["Produkt","So funktioniert's","Lösungen","Vertrauen"], signin:"Anmelden", book:"Demo buchen",
@@ -2043,7 +2169,7 @@ const LT = {
     b2c:["Privatkunden (B2C)",["Freundlicher Ton, beim Vornamen, ohne Fachjargon","Ersparnis-Seite und 3 Monatsraten","WhatsApp oder E-Mail, ganz wie gewünscht"]],
     b2b:["Geschäftskunden (B2B)",["Schreibt an die Kreditorenbuchhaltung","Nennt Rechnungs- und Bestellnummern, bietet Kontoauszüge an","Bucht Termine mit CFO oder Inhaber"]],
     trustTitle:"Vertrauen und Datenschutz",
-    trust:["Abmeldelink in jeder Nachricht und ein Versandlimit pro Kunde","Jede Nachricht, Antwort und Zahlung wird für Prüfungen protokolliert","Probleme gehen an einen Menschen: Reklamationen pausieren Erinnerungen automatisch","Diese Demo nutzt nur fiktive Kontakte; echte Test-E-Mails gehen an ein Postfach Ihrer Wahl"],
+    trust:["Abmeldelink in jeder E-Mail (oder STOP antworten), Versandlimit pro Kunde und Ruhezeiten","Jede Nachricht, Antwort und Zahlung wird für Prüfungen protokolliert","Probleme gehen an einen Menschen: Reklamationen pausieren Erinnerungen automatisch","Diese Demo nutzt nur fiktive Kontakte; echte Test-E-Mails gehen an ein Postfach Ihrer Wahl"],
     ctaTitle:"Mit echten E-Mails ausprobieren", ctaSub:"Demo öffnen, Erinnerung senden und zusehen, wie sie im Test-Postfach ankommt.",
     footer:"SolarWake · Hackathon-Demo · Smarte Vorlagen, keine Kundendaten" },
 };
@@ -2196,6 +2322,135 @@ function Landing({ lang, setLang, openApp }){
         </section>
       </main>
       <footer style={{borderTop:"1px solid #E5E7EB",padding:"22px 20px",textAlign:"center",color:"#6B7280",fontSize:13}}>{t.footer}</footer>
+    </div>
+  );
+}
+
+// ================== SENDING RULES UI ==================
+const linkBtn = { background:"none", border:"none", padding:0, color:"#1D4ED8", fontWeight:700, fontSize:11, cursor:"pointer", textDecoration:"underline", fontFamily:"inherit" };
+
+// Delivery status of an outgoing message, with a staff override for messages held by quiet hours.
+function DeliveryNote({ d, onSendNow }){
+  if(!d) return null;
+  const text={ sent:"📨 Real email delivered to the test inbox", sending:"Sending real email…", error:`⚠ Not sent: ${d.note}`,
+    held:`⏰ ${d.note}`, released:`✓ Sent${d.override?" by staff override":" after quiet hours"}`, cancelled:`🚫 ${d.note}` }[d.state]||d.note;
+  return (
+    <div style={{fontSize:11,fontWeight:700,marginBottom:8,color:{ sent:"#15803D", released:"#15803D", error:"#B91C1C", held:"#92400E", cancelled:"#B91C1C" }[d.state]||"#6B7280"}}>
+      {text}{d.state==="held"&&onSendNow&&<> · <button onClick={onSendNow} style={linkBtn}>Send now (staff override)</button></>}
+    </div>
+  );
+}
+
+// What the customer sees at the bottom of every email.
+function UnsubFooter({ onUnsub }){
+  return (
+    <div style={{fontSize:11,color:"#6B7280",marginTop:8,borderTop:"1px dashed #E5E7EB",paddingTop:6}}>
+      Don't want these emails? <button onClick={onUnsub} style={linkBtn}>Unsubscribe</button>
+    </div>
+  );
+}
+
+function SendingRules({ policy, setPolicy, optOuts, resubscribe, held, sendNow, onClose }){
+  const sel={ background:C.panel2, color:C.text, border:`1px solid ${C.line}`, borderRadius:9, padding:"6px 8px", fontSize:13, fontWeight:600 };
+  const card={ background:C.night, border:`1px solid ${C.line}`, borderRadius:12, padding:14 };
+  const now=new Date();
+  const status=seg=>isQuiet(now,seg,policy)?<span style={{color:C.goldSoft}}>closed until {fmtWhen(nextWindow(now,seg,policy))}</span>:<span style={{color:"#7BE0A6"}}>open now</span>;
+  const set=(k,v)=>setPolicy(p=>({ ...p, [k]:v }));
+  const outs=Object.entries(optOuts);
+  const check=(k,t)=>(
+    <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,marginTop:8,cursor:"pointer"}}>
+      <input type="checkbox" checked={policy[k]} onChange={e=>set(k,e.target.checked)} style={{accentColor:C.gold,width:16,height:16}}/> {t}
+    </label>
+  );
+  return (
+    <section className="sw-in" aria-label="Sending rules" style={{...panel,marginBottom:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,marginBottom:12}}>
+        <div>
+          <div style={{fontSize:16,fontWeight:800}}>🛡 Sending rules</div>
+          <div style={{fontSize:12,color:C.sub,marginTop:2,maxWidth:720}}>Apply to every proactive message (openers, campaigns, reminders) on email and WhatsApp. Replies to a customer's own message are always allowed, unless they unsubscribed. Saved in this browser.</div>
+        </div>
+        <button onClick={onClose} aria-label="Close sending rules" style={{...sel,cursor:"pointer"}}>✕</button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))",gap:12}}>
+        <div style={card}>
+          <div style={{...label,marginBottom:8}}>Quiet hours</div>
+          <div style={{display:"flex",alignItems:"center",gap:8,fontSize:13,flexWrap:"wrap"}}>
+            Send between
+            <select aria-label="Earliest hour" value={policy.start} onChange={e=>set("start",Math.min(Number(e.target.value),policy.end-1))} style={sel}>{Array.from({length:24},(_,h)=><option key={h} value={h}>{hh(h)}</option>)}</select>
+            and
+            <select aria-label="Latest hour" value={policy.end} onChange={e=>set("end",Math.max(Number(e.target.value),policy.start+1))} style={sel}>{Array.from({length:24},(_,h)=><option key={h+1} value={h+1}>{hh(h+1)}</option>)}</select>
+          </div>
+          {check("b2bWeekdays","Businesses: weekdays only")}
+          {check("b2cWeekdays","Homeowners: weekdays only")}
+          <div style={{fontSize:12,color:C.sub,marginTop:10,lineHeight:1.6}}>Businesses: {status("Commercial")}<br/>Homeowners: {status("Residential")}</div>
+          <div style={{fontSize:11,color:C.sub,marginTop:6}}>Messages created outside these hours are held and sent automatically when the window opens.</div>
+        </div>
+        <div style={card}>
+          <div style={{...label,marginBottom:8}}>Sending limit</div>
+          <div style={{display:"flex",alignItems:"center",gap:8,fontSize:13,flexWrap:"wrap"}}>
+            At most
+            <select aria-label="Messages per customer" value={policy.capN} onChange={e=>set("capN",Number(e.target.value))} style={sel}>{[1,2,3,5].map(n=><option key={n} value={n}>{n}</option>)}</select>
+            message{policy.capN>1?"s":""} per customer every
+            <select aria-label="Days" value={policy.capDays} onChange={e=>set("capDays",Number(e.target.value))} style={sel}>{[1,2,3,7,14].map(n=><option key={n} value={n}>{n} day{n>1?"s":""}</option>)}</select>
+          </div>
+          <div style={{fontSize:11,color:C.sub,marginTop:10}}>A customer with several open invoices still gets only this many reminders. Messages over the limit are not sent, and the activity feed says when the next one is allowed.</div>
+          {held.length>0&&(
+            <div style={{marginTop:12}}>
+              <div style={{...label,marginBottom:6}}>Held for quiet hours ({held.length})</div>
+              {held.map(h=>(
+                <div key={h.msg.id} style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:12,padding:"4px 0"}}>
+                  <span>{h.target.name} · {fmtWhen(new Date(h.at))}</span>
+                  <button onClick={()=>sendNow(h.msg.id)} style={{...linkBtn,color:"#93C5FD",fontSize:12}}>Send now</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={card}>
+          <div style={{...label,marginBottom:8}}>Unsubscribed ({outs.length})</div>
+          {!outs.length&&<div style={{fontSize:12.5,color:C.sub,lineHeight:1.5}}>Nobody yet. Every email carries an unsubscribe link (and a List-Unsubscribe header), and replying STOP works too.</div>}
+          {outs.map(([key,date])=>{
+            const c=contactInfo(key);
+            return (
+              <div key={key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,fontSize:12.5,padding:"5px 0",borderBottom:`1px solid ${C.line}`}}>
+                <span>{c?c.name:key}{c&&c.org?` · ${c.org}`:""}<br/><span style={{fontSize:11,color:C.sub}}>{c?c.co.name:""} · since {fmtD(date)}</span></span>
+                <button onClick={()=>resubscribe(key)} style={{...sel,fontSize:12,cursor:"pointer"}}>Resubscribe</button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// The page behind the unsubscribe link (/?u=<contact id>), in the installer's branding.
+function UnsubscribePage({ info, optedOut, onConfirm, onUndo, onBack }){
+  const co=info.co;
+  return (
+    <div className="lp" style={{minHeight:"100vh",background:"#F6F7F9",display:"grid",placeItems:"center",padding:20}}>
+      <main style={{background:"#fff",border:"1px solid #E5E7EB",borderRadius:18,maxWidth:470,width:"100%",padding:"28px 26px",textAlign:"center"}}>
+        <div style={{display:"inline-flex",alignItems:"center",gap:8,fontWeight:800,marginBottom:18}}>
+          <span aria-hidden="true" style={{width:30,height:30,borderRadius:8,background:co.brand,color:"#fff",display:"grid",placeItems:"center"}}>☀</span>{co.name}
+        </div>
+        {optedOut ? (
+          <>
+            <div style={{fontSize:36}} aria-hidden="true">✅</div>
+            <h1 style={{fontSize:24,margin:"6px 0 10px"}}>You're unsubscribed</h1>
+            <p style={{color:"#374151",lineHeight:1.6,margin:"0 0 10px"}}>{info.name}{info.org?` (${info.org})`:""} won't receive any more emails or WhatsApp messages from {co.name} about {info.about}.</p>
+            {info.about==="your invoices"&&<p style={{color:"#6B7280",fontSize:13.5,lineHeight:1.5,margin:"0 0 14px"}}>Open invoices stay due. You can still pay any time from your invoice link.</p>}
+            <button className="lp-ghost" onClick={onUndo}>Unsubscribed by mistake? Resubscribe</button>
+          </>
+        ) : (
+          <>
+            <h1 style={{fontSize:24,margin:"0 0 10px"}}>Unsubscribe from {co.name}?</h1>
+            <p style={{color:"#374151",lineHeight:1.6,margin:"0 0 18px"}}>You'll stop receiving emails and WhatsApp messages about {info.about}. This takes effect immediately.</p>
+            <button className="lp-btn" onClick={onConfirm}>Unsubscribe</button>
+          </>
+        )}
+        <p style={{color:"#6B7280",fontSize:12,margin:"18px 0 0"}}>Contact: {info.email} (fictional demo contact)</p>
+        {onBack&&<button className="lp-link" style={{marginTop:10}} onClick={onBack}>← Back to the installer app</button>}
+      </main>
     </div>
   );
 }

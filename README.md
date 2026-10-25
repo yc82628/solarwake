@@ -52,6 +52,25 @@ Setup (free Resend account, no domain needed):
 
 Replies from the inbox don't flow back into the app yet; you still reply as the company inside the app.
 
+### Sending rules (🛡 button in the app header)
+
+Every proactive message (openers, campaigns, payment reminders), on email and WhatsApp, has to pass three rules.
+Replies to a customer's own message are always allowed, unless that contact unsubscribed.
+
+- **Unsubscribe:** every real email ends with an unsubscribe link (`/?u=<contact id>`) and carries a
+  `List-Unsubscribe` header. The server refuses to send an email without one. Replying "stop",
+  "unsubscribe" or "remove us from your list" works too. Unsubscribed contacts get nothing more: no
+  openers, reminders or replies. Held messages for them are cancelled. You can resubscribe them from the rules panel.
+- **Sending limit:** at most N messages per customer every D days (default 1 per 3 days). It counts per
+  customer, so a customer with several open invoices doesn't get several reminders at once.
+- **Quiet hours:** default 08:00–21:00, plus weekdays only for business customers. Messages created
+  outside the window are held, shown as "⏰ Quiet hours: scheduled for …", and sent automatically when
+  the window opens. Staff can use "Send now (staff override)" for the demo.
+
+Rules, unsubscribes and quiet hours are kept in the browser (localStorage), so an unsubscribe made in
+another tab of the same browser updates the console live. A production version would store them
+server-side so every device sees the same list.
+
 No external CRM: leads live in the app. A small serverless function keeps your API key off the browser.
 
 ```
