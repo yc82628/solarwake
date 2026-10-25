@@ -80,23 +80,24 @@ const COMPANIES = [
 ];
 // bill = current electricity bill per month (€). lost = why the deal stalled. dm = decision-maker (B2B).
 // All people and email addresses are fictional; example.com is reserved and can never reach a real inbox.
+// consent = the lead opted in to follow-up marketing (e.g. ticked the box on the quote request).
 const CONTACTS = [
-  {id:"C-1001",co:"SW-001",name:"Michael Weber",seg:"Residential",city:"Munich",kw:8,quote:14200,days:47,status:"Cold",phone:"+491511234567",email:"michael.weber@example.com",bill:125,src:"Google Ads",lost:"Price felt high"},
-  {id:"C-1002",co:"SW-001",name:"Sofia Klein",seg:"Residential",city:"Munich",kw:6.5,quote:9800,days:62,status:"Contacting",phone:"+491602345678",email:"sofia.klein@example.com",bill:95,src:"Website form",lost:"Timing"},
-  {id:"C-1003",co:"SW-001",name:"Jonas Braun",seg:"Residential",city:"Augsburg",kw:11,quote:21400,days:38,status:"Warm",phone:"+491703456789",email:"jonas.braun@example.com",bill:170,src:"Referral",lost:"Competing quote"},
-  {id:"C-1004",co:"SW-001",name:"Amelie Roth",seg:"Residential",city:"Munich",kw:5.5,quote:12100,days:90,status:"Cold",phone:"+491514567890",email:"amelie.roth@example.com",bill:85,src:"Facebook Ads",lost:"Unsure about savings"},
-  {id:"C-1005",co:"SW-001",name:"David Fischer",seg:"Residential",city:"Rosenheim",kw:9.5,quote:17600,days:51,status:"Cold",phone:"+491605678901",email:"david.fischer@example.com",bill:140,src:"Google Ads",lost:"Price felt high"},
-  {id:"C-1006",co:"SW-001",name:"Bäckerei Hofmann GmbH",seg:"Commercial",city:"Munich",kw:42,quote:48500,days:73,status:"Cold",phone:"+498912345678",email:"thomas.hofmann@example.com",bill:1450,src:"Trade fair",lost:"Cash flow",dm:"Thomas Hofmann (Owner)"},
-  {id:"C-1007",co:"SW-001",name:"Weber & Sohn Logistik",seg:"Commercial",city:"Dachau",kw:95,quote:112000,days:44,status:"Warm",phone:"+498131234567",email:"katrin.weber@example.com",bill:3900,src:"LinkedIn",lost:"Needs CFO sign-off",dm:"Katrin Weber (CFO)"},
-  {id:"C-1008",co:"SW-002",name:"Lena Schuster",seg:"Residential",city:"Berlin",kw:7,quote:13100,days:55,status:"Cold",phone:"+491512223344",email:"lena.schuster@example.com",bill:110,src:"Google Ads",lost:"Timing"},
-  {id:"C-1009",co:"SW-002",name:"Paul Neumann",seg:"Residential",city:"Potsdam",kw:10,quote:19800,days:29,status:"Contacting",phone:"+491603334455",email:"paul.neumann@example.com",bill:155,src:"Website form",lost:"Competing quote"},
-  {id:"C-1010",co:"SW-002",name:"Café Sonnendeck",seg:"Commercial",city:"Berlin",kw:28,quote:36700,days:81,status:"Cold",phone:"+493044556677",email:"mara.lenz@example.com",bill:980,src:"Walk-in",lost:"Unsure about payback",dm:"Mara Lenz (Owner)"},
-  {id:"C-1012",co:"SW-003",name:"Erik Hansen",seg:"Residential",city:"Hamburg",kw:8.5,quote:15600,days:67,status:"Cold",phone:"+491515556677",email:"erik.hansen@example.com",bill:120,src:"Google Ads",lost:"Price felt high"},
-  {id:"C-1013",co:"SW-003",name:"Nina Fischer",seg:"Residential",city:"Lübeck",kw:7.5,quote:13900,days:33,status:"Warm",phone:"+491606667788",email:"nina.fischer@example.com",bill:105,src:"Referral",lost:"Timing"},
-  {id:"C-1014",co:"SW-003",name:"Nordwind Hotel GmbH",seg:"Commercial",city:"Hamburg",kw:60,quote:74000,days:58,status:"Cold",phone:"+494030001122",email:"jan.petersen@example.com",bill:2600,src:"LinkedIn",lost:"Needs board approval",dm:"Jan Petersen (GM)"},
-  {id:"C-1019",co:"SW-005",name:"Andreas Meier",seg:"Residential",city:"Zurich",kw:9,quote:22500,days:41,status:"Warm",phone:"+41791234567",email:"andreas.meier@example.com",bill:150,src:"Website form",lost:"Competing quote"},
-  {id:"C-1020",co:"SW-005",name:"Claudia Brunner",seg:"Residential",city:"Winterthur",kw:6.5,quote:17800,days:60,status:"Cold",phone:"+41782345678",email:"claudia.brunner@example.com",bill:100,src:"Google Ads",lost:"Unsure about savings"},
-  {id:"C-1021",co:"SW-005",name:"Bergblick Praxis AG",seg:"Commercial",city:"Zug",kw:22,quote:39900,days:53,status:"Contacting",phone:"+41412223344",email:"sabine.graf@example.com",bill:820,src:"Referral",lost:"Cash flow",dm:"Dr. Sabine Graf (Partner)"},
+  {id:"C-1001",co:"SW-001",name:"Michael Weber",seg:"Residential",city:"Munich",kw:8,quote:14200,days:47,consent:true,status:"Cold",phone:"+491511234567",email:"michael.weber@example.com",bill:125,src:"Google Ads",lost:"Price felt high"},
+  {id:"C-1002",co:"SW-001",name:"Sofia Klein",seg:"Residential",city:"Munich",kw:6.5,quote:9800,days:62,consent:true,status:"Contacting",phone:"+491602345678",email:"sofia.klein@example.com",bill:95,src:"Website form",lost:"Timing"},
+  {id:"C-1003",co:"SW-001",name:"Jonas Braun",seg:"Residential",city:"Augsburg",kw:11,quote:21400,days:38,consent:true,status:"Warm",phone:"+491703456789",email:"jonas.braun@example.com",bill:170,src:"Referral",lost:"Competing quote"},
+  {id:"C-1004",co:"SW-001",name:"Amelie Roth",seg:"Residential",city:"Munich",kw:5.5,quote:12100,days:90,consent:false,status:"Cold",phone:"+491514567890",email:"amelie.roth@example.com",bill:85,src:"Facebook Ads",lost:"Unsure about savings"},
+  {id:"C-1005",co:"SW-001",name:"David Fischer",seg:"Residential",city:"Rosenheim",kw:9.5,quote:17600,days:51,consent:true,status:"Cold",phone:"+491605678901",email:"david.fischer@example.com",bill:140,src:"Google Ads",lost:"Price felt high"},
+  {id:"C-1006",co:"SW-001",name:"Bäckerei Hofmann GmbH",seg:"Commercial",city:"Munich",kw:42,quote:48500,days:73,consent:true,status:"Cold",phone:"+498912345678",email:"thomas.hofmann@example.com",bill:1450,src:"Trade fair",lost:"Cash flow",dm:"Thomas Hofmann (Owner)"},
+  {id:"C-1007",co:"SW-001",name:"Weber & Sohn Logistik",seg:"Commercial",city:"Dachau",kw:95,quote:112000,days:44,consent:true,status:"Warm",phone:"+498131234567",email:"katrin.weber@example.com",bill:3900,src:"LinkedIn",lost:"Needs CFO sign-off",dm:"Katrin Weber (CFO)"},
+  {id:"C-1008",co:"SW-002",name:"Lena Schuster",seg:"Residential",city:"Berlin",kw:7,quote:13100,days:55,consent:true,status:"Cold",phone:"+491512223344",email:"lena.schuster@example.com",bill:110,src:"Google Ads",lost:"Timing"},
+  {id:"C-1009",co:"SW-002",name:"Paul Neumann",seg:"Residential",city:"Potsdam",kw:10,quote:19800,days:29,consent:true,status:"Contacting",phone:"+491603334455",email:"paul.neumann@example.com",bill:155,src:"Website form",lost:"Competing quote"},
+  {id:"C-1010",co:"SW-002",name:"Café Sonnendeck",seg:"Commercial",city:"Berlin",kw:28,quote:36700,days:81,consent:true,status:"Cold",phone:"+493044556677",email:"mara.lenz@example.com",bill:980,src:"Walk-in",lost:"Unsure about payback",dm:"Mara Lenz (Owner)"},
+  {id:"C-1012",co:"SW-003",name:"Erik Hansen",seg:"Residential",city:"Hamburg",kw:8.5,quote:15600,days:67,consent:true,status:"Cold",phone:"+491515556677",email:"erik.hansen@example.com",bill:120,src:"Google Ads",lost:"Price felt high"},
+  {id:"C-1013",co:"SW-003",name:"Nina Fischer",seg:"Residential",city:"Lübeck",kw:7.5,quote:13900,days:33,consent:true,status:"Warm",phone:"+491606667788",email:"nina.fischer@example.com",bill:105,src:"Referral",lost:"Timing"},
+  {id:"C-1014",co:"SW-003",name:"Nordwind Hotel GmbH",seg:"Commercial",city:"Hamburg",kw:60,quote:74000,days:58,consent:false,status:"Cold",phone:"+494030001122",email:"jan.petersen@example.com",bill:2600,src:"LinkedIn",lost:"Needs board approval",dm:"Jan Petersen (GM)"},
+  {id:"C-1019",co:"SW-005",name:"Andreas Meier",seg:"Residential",city:"Zurich",kw:9,quote:22500,days:41,consent:true,status:"Warm",phone:"+41791234567",email:"andreas.meier@example.com",bill:150,src:"Website form",lost:"Competing quote"},
+  {id:"C-1020",co:"SW-005",name:"Claudia Brunner",seg:"Residential",city:"Winterthur",kw:6.5,quote:17800,days:60,consent:true,status:"Cold",phone:"+41782345678",email:"claudia.brunner@example.com",bill:100,src:"Google Ads",lost:"Unsure about savings"},
+  {id:"C-1021",co:"SW-005",name:"Bergblick Praxis AG",seg:"Commercial",city:"Zug",kw:22,quote:39900,days:53,consent:true,status:"Contacting",phone:"+41412223344",email:"sabine.graf@example.com",bill:820,src:"Referral",lost:"Cash flow",dm:"Dr. Sabine Graf (Partner)"},
 ];
 
 // Email is the default channel (many businesses ignore vendor WhatsApps); WhatsApp can be chosen per lead.
@@ -758,6 +759,7 @@ function App(){
     const key=contactKey(target);
     if(optOuts[key]) return { kind:"optout", text:`${target.name} unsubscribed on ${fmtD(optOuts[key])}: nothing sent` };
     if(!proactive) return null;
+    if(target.consent===false) return { kind:"consent", text:`No marketing consent on file for ${target.name}: in Germany, follow-up marketing to leads needs prior opt-in (UWG §7, GDPR), so nothing was sent` };
     const now=Date.now(), win=policy.capDays*864e5;
     const recent=(outboxRef.current[key]||[]).filter(t=>now-t<win);
     if(recent.length>=policy.capN) return { kind:"cap", text:`Sending limit (${policy.capN} per ${policy.capDays} day${policy.capDays>1?"s":""}) reached for ${target.name}: next allowed ${fmtWhen(new Date(Math.min(...recent)+win))}` };
@@ -1105,7 +1107,9 @@ function Console(p){
   const optedOut=lead&&optOuts[lead.id];
   const brief=lead&&briefs[lead.id];
   const maxFunnel=Math.max(1,...kpi.funnel.map(f=>f.n));
-  const coldCount=visibleLeads.filter(l=>l.status==="Cold").length;
+  const cold=visibleLeads.filter(l=>l.status==="Cold");
+  const coldCount=cold.filter(l=>l.consent!==false&&!optOuts[l.id]).length;
+  const noConsent=cold.filter(l=>l.consent===false).length;
 
   return (
     <>
@@ -1165,7 +1169,7 @@ function Console(p){
             style={{background:campaign?C.panel2:C.gold,color:campaign?C.sub:C.night,border:"none",borderRadius:11,padding:"10px 16px",fontWeight:800,fontSize:13.5,cursor:campaign?"default":"pointer",whiteSpace:"nowrap"}}>
             {campaign?"Campaign running…":`🚀 Reactivate all cold leads (${coldCount})`}
           </button>
-          <span style={{fontSize:10.5,color:C.sub}}>Each lead gets its own playbook · replies simulated in demo</span>
+          <span style={{fontSize:10.5,color:C.sub}}>Each lead gets its own playbook · replies simulated in demo{noConsent?` · ${noConsent} skipped (no consent)`:""}</span>
         </div>
       </div>
 
@@ -1206,6 +1210,8 @@ function Console(p){
                   <span style={{fontSize:12,fontWeight:700,color:"#BBF7D0",background:"#0F3D22",padding:"5px 11px",borderRadius:999}}>📅 {lead.appointment}</span>
                 )}
                 <span style={{fontSize:11.5,fontWeight:700,color:pb.color}}>{pb.icon} {pb.label}</span>
+                <span title={lead.consent===false?"No opt-in on record: SolarWake will not send marketing follow-ups":`Opt-in recorded with the ${lead.src} enquiry`}
+                  style={{fontSize:11.5,fontWeight:700,color:lead.consent===false?"#FCD34D":"#7BE0A6"}}>{lead.consent===false?"⚠ No marketing consent":"✓ Marketing consent"}</span>
                 <div title={started?"Channel is fixed once the conversation has started":"Choose how the agent reaches this lead"}
                   style={{display:"inline-flex",background:C.night,border:`1px solid ${C.line}`,borderRadius:999,padding:2,opacity:started?.6:1}}>
                   {Object.entries(CHANNELS).map(([k,ch])=>{
@@ -1259,6 +1265,7 @@ function Console(p){
                       <SegBadge seg={l.seg} small/>
                       <span title={`Agent reaches this lead by ${CHANNELS[l.channel].label}`} style={{fontSize:11}}>{CHANNELS[l.channel].icon}</span>
                       {optOuts[l.id]&&<span title="Unsubscribed" style={{fontSize:10,fontWeight:800,color:"#FCA5A5"}}>🚫 unsubscribed</span>}
+                      {l.consent===false&&<span title="No marketing consent on file" style={{fontSize:10,fontWeight:800,color:"#FCD34D"}}>⚠ no consent</span>}
                     </div>
                     <div style={{fontSize:11,color:C.sub}}>quoted {eur(l.quote)} · {l.days}d ago · {l.lost.toLowerCase()}</div>
                   </div>
@@ -1301,6 +1308,7 @@ function Console(p){
                       </div>
                       {lead&&(
                         optedOut ? <div style={{fontSize:13,fontWeight:700,color:"#B91C1C"}}>🚫 Unsubscribed on {fmtD(optedOut)}: no messages will be sent.</div>
+                        : lead.consent===false ? <div style={{fontSize:12.5,lineHeight:1.5,color:"#92400E",background:"#FEF3C7",borderRadius:10,padding:"10px 12px",textAlign:"left"}}><b>⚠ No marketing consent on file.</b> In Germany, follow-up marketing to leads needs prior opt-in (UWG §7, GDPR), so SolarWake won't contact {lead.name}. They can still get in touch themselves, and their quote page stays available.</div>
                         : <button onClick={start} style={{display:"inline-flex",alignItems:"center",gap:8,background:C.waHeader,color:"#fff",border:"none",padding:"11px 20px",borderRadius:999,fontWeight:700,fontSize:14,cursor:"pointer"}}>▶ Start reactivation</button>
                       )}
                     </>
@@ -1405,6 +1413,7 @@ function EmailPane({ lead, messages, started, typing, pb, start, send, openPorta
                   {biz?"Many businesses ignore vendor WhatsApps, so ":""}SolarWake will reach <b>{contact}</b> by email using the <b>{pb.label.toLowerCase()}</b>.
                 </div>
                 {optedOut ? <div style={{fontSize:13,fontWeight:700,color:"#B91C1C"}}>🚫 Unsubscribed on {fmtD(optedOut)}: no emails will be sent.</div>
+                  : lead.consent===false ? <div style={{fontSize:12.5,lineHeight:1.5,color:"#92400E",background:"#FEF3C7",borderRadius:10,padding:"10px 12px",textAlign:"left"}}><b>⚠ No marketing consent on file.</b> In Germany, follow-up marketing to leads needs prior opt-in (UWG §7, GDPR), so SolarWake won't contact {lead.name}. They can still get in touch themselves, and their quote page stays available.</div>
                   : <button onClick={start} style={{background:"#1E3A8A",color:"#fff",border:"none",padding:"11px 20px",borderRadius:999,fontWeight:700,fontSize:14,cursor:"pointer"}}>✉️ Send reactivation email</button>}
               </>
             )}

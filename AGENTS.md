@@ -32,7 +32,8 @@ so search for the header names:
 
 - **CONFIG:** `USE_CLAUDE` (currently `false`) and `MODEL`.
 - **CRM DATA:** `COMPANIES` (4 installers), `CONTACTS` (16 leads with `seg`, `kw`, `quote`, `bill`,
-  `lost` = why the deal stalled, `dm` = decision-maker for businesses). `ECON` holds the solar economics,
+  `lost` = why the deal stalled, `dm` = decision-maker for businesses, `consent` = opted in to
+  follow-up marketing; C-1004 and C-1014 are `false`). `ECON` holds the solar economics,
   and `solarModel()` computes savings, payback and CO₂ from it.
 - **PLAYBOOKS:** `PLAYBOOKS.Residential` (B2C homeowner) and `PLAYBOOKS.Commercial` (B2B), each with
   quick replies, openers per channel (`email` / `whatsapp`) and a `system(lead, co, channel)` prompt.
@@ -49,7 +50,7 @@ so search for the header names:
 - **SENDING RULES:** `POLICY_DEFAULT` (quiet hours 08–21, weekdays only for businesses, at most 1
   proactive message per customer every 3 days), `isQuiet()` / `nextWindow()`, `STOP_WORDS` and
   `contactInfo()`. In `App()`, `sendRule()` gates every proactive message (openers, campaigns,
-  reminders): unsubscribed → nothing, over the limit → not sent, quiet hours → held and released later
+  reminders): unsubscribed → nothing, lead without `consent` → nothing, over the limit → not sent, quiet hours → held and released later
   (staff can override). Replies to a customer's own message skip the limit and quiet hours but never
   go to unsubscribed contacts. Unsubscribes and the policy live in localStorage (`sw-optouts`,
   `sw-policy`); the UI is `SendingRules`, `UnsubscribePage`, `DeliveryNote` and `UnsubFooter`.
@@ -122,7 +123,7 @@ Order matters. Steps 1–3 are a complete, fun demo; step 4 is the showstopper.
 - Done when: with `USE_AI = true` and a key in `.env.local`, a lead conversation books and a billing
   reply is handled by the AI; with the key removed, both still work via templates.
 
-### 2. Safety rails (~45 min)
+### 2. Safety rails (~45 min) ✅ done (consent flag, STOP/Stopp opt-out, plus unsubscribe links, sending limit, quiet hours)
 - Add a `consent` field to each lead (most `true`, one or two `false` for the demo). Without consent,
   "Send reactivation email" is disabled and says why (UWG §7 / GDPR: marketing to old leads needs
   opt-in), and `runCampaign()` skips the lead.

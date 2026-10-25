@@ -57,6 +57,10 @@ Replies from the inbox don't flow back into the app yet; you still reply as the 
 Every proactive message (openers, campaigns, payment reminders), on email and WhatsApp, has to pass three rules.
 Replies to a customer's own message are always allowed, unless that contact unsubscribed.
 
+- **Marketing consent:** every lead has a `consent` flag. Leads without an opt-in on record (Amelie Roth
+  and Nordwind Hotel in the demo data) can't be contacted: the start button is replaced by an explanation
+  (UWG §7 / GDPR), and the campaign skips them. Payment reminders are about an existing contract, so
+  they don't need marketing consent.
 - **Unsubscribe:** every real email ends with an unsubscribe link (`/?u=<contact id>`) and carries a
   `List-Unsubscribe` header. The server refuses to send an email without one. Replying "stop",
   "unsubscribe" or "remove us from your list" works too. Unsubscribed contacts get nothing more: no
