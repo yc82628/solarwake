@@ -552,7 +552,7 @@ function nextWindow(from, seg, p){
 }
 
 // Replying STOP (or similar) unsubscribes, like the link in every email.
-const STOP_WORDS = /\b(stop|unsubscribe|opt[ -]?out|abmelden)\b|remove (me|us) from/i;
+const STOP_WORDS = /\b(stopp?|unsubscribe|opt[ -]?out|abmelden)\b|remove (me|us) from/i;
 const contactKey = x => x.cid || x.id;
 function contactInfo(key){
   const l=CONTACTS.find(c=>c.id===key);

@@ -17,8 +17,9 @@ It is a **demo** with fictional companies and contacts. No real customer is ever
 ```
 index.html       the whole app (~2200 lines): React 18 + Babel standalone from a CDN, no build step
 api/chat.js      serverless proxy to the LLM (currently Anthropic, switched off by default)
-api/email.js     serverless email sender via Resend; only accepts @example.com recipients and
-                 redirects every email to one test inbox
+api/email.js     serverless email sender via Resend; only accepts @example.com recipients,
+                 redirects every email to one test inbox, and adds an unsubscribe link
+                 (/?u=<contact id>) plus a List-Unsubscribe header to every email
 dev-server.mjs   local server that serves index.html and runs api/*.js like Vercel does
 package.json     `npm run local` script; lets Vercel recognise the project
 README.md        features, setup, deploy and a 3-minute demo script
@@ -45,6 +46,13 @@ so search for the header names:
   It is used in 4 places, each with a template fallback: lead replies (`agentReply`), reminder emails
   (`sendReminder`), billing replies (`invAgentReply`) and the advisor handoff brief (`makeBrief`).
   `toApi()` adds a dummy first user turn because Anthropic's API requires one.
+- **SENDING RULES:** `POLICY_DEFAULT` (quiet hours 08–21, weekdays only for businesses, at most 1
+  proactive message per customer every 3 days), `isQuiet()` / `nextWindow()`, `STOP_WORDS` and
+  `contactInfo()`. In `App()`, `sendRule()` gates every proactive message (openers, campaigns,
+  reminders): unsubscribed → nothing, over the limit → not sent, quiet hours → held and released later
+  (staff can override). Replies to a customer's own message skip the limit and quiet hours but never
+  go to unsubscribed contacts. Unsubscribes and the policy live in localStorage (`sw-optouts`,
+  `sw-policy`); the UI is `SendingRules`, `UnsubscribePage`, `DeliveryNote` and `UnsubFooter`.
 - **ADVISOR HANDOFF BRIEF:** `BRIEF_SYSTEM` prompt, plus `heuristicBrief()` as the no-AI version.
 - **BILLING:** `BILLING` → `INITIAL_INVOICES`, the reminder `LADDER` (heads-up → due → polite → firm →
   final), `classifyReply()` for payment replies, `billingSystem()` prompt (with rules: never invent
@@ -57,7 +65,7 @@ so search for the header names:
 
 Modes: the header toggle switches between **Live mode** (real test emails) and **Rehearsal** (nothing
 sent, templates only). Deep links: `/?p=C-1006` opens a customer page, `/?i=INV-...` a pay page,
-`/#app` the app.
+`/?u=C-1006` (or a billing contact like `K-01`) the unsubscribe page, `/#app` the app.
 
 ## Running and checking
 
@@ -78,8 +86,8 @@ sent, templates only). Deep links: `/?p=C-1006` opens a customer page, `/?i=INV-
 3. **No invented facts.** The agent may only quote numbers from `leadFacts()` / `invFacts()` (which come
    from `ECON` and the data). Never let the model state subsidies, prices, savings or legal
    consequences of its own.
-4. **Keep the protections in `api/`.** `api/email.js` only accepts `@example.com` recipients and
-   redirects to the test inbox; `api/chat.js` allow-lists models, caps tokens and forwards only known
+4. **Keep the protections in `api/`.** `api/email.js` only accepts `@example.com` recipients,
+   redirects to the test inbox and refuses to send without a contact id for the unsubscribe link; `api/chat.js` allow-lists models, caps tokens and forwards only known
    fields. A public demo URL must not let strangers spend the API key on arbitrary requests.
 5. **Safety decisions stay deterministic.** Opt-outs ("STOP", "Stopp", "unsubscribe") and disputes
    are detected with rules *before* any LLM call, and they always win over what the model says.
