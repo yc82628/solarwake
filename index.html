@@ -18,6 +18,20 @@
   @keyframes swb{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-4px);opacity:1}}
   @keyframes swin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
   .sw-in{animation:swin .35s ease}
+  /* Fun layer: leads sleep, get an alarm, wake up and celebrate */
+  @keyframes swwake{0%{transform:translateY(7px) scale(.55);filter:brightness(.6)}60%{transform:translateY(-3px) scale(1.18);filter:brightness(1.35)}100%{transform:none;filter:none}}
+  .sw-wake{animation:swwake .8s cubic-bezier(.2,.8,.2,1)}
+  @keyframes swring{0%,100%{transform:rotate(0)}15%{transform:rotate(-16deg)}30%{transform:rotate(14deg)}45%{transform:rotate(-10deg)}60%{transform:rotate(7deg)}75%{transform:rotate(-3deg)}}
+  .sw-ring{animation:swring .9s ease 2}
+  @keyframes swzz{0%{opacity:0;transform:translate(0,0) scale(.7)}30%{opacity:.95}100%{opacity:0;transform:translate(7px,-13px) scale(1.15)}}
+  .sw-zz{position:absolute;top:-5px;right:-4px;font-size:10px;font-weight:800;color:#8DA0C0;animation:swzz 2.6s ease-in-out infinite;pointer-events:none}
+  .sw-asleep{filter:grayscale(.6);opacity:.75}
+  @keyframes swpop{0%{transform:scale(1)}40%{transform:scale(1.14)}100%{transform:scale(1)}}
+  .sw-pop{animation:swpop .5s ease}
+  @keyframes swconf{0%{transform:translate3d(0,-6vh,0) rotate(0)}100%{transform:translate3d(var(--dx),104vh,0) rotate(var(--rot))}}
+  .sw-conf{position:fixed;top:0;width:9px;height:14px;border-radius:2px;z-index:60;pointer-events:none;animation:swconf var(--dur) cubic-bezier(.25,.6,.4,1) var(--delay) forwards}
+  @keyframes swsun{0%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(-30deg)}30%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.7) rotate(20deg)}}
+  .sw-sun{position:fixed;left:50%;top:42%;font-size:110px;z-index:60;pointer-events:none;animation:swsun 1.4s ease-out forwards;filter:drop-shadow(0 0 40px #F5B301)}
   @media(max-width:900px){.sw-grid,.sw-2col,.sw-pgrid{grid-template-columns:minmax(0,1fr) !important}.sw-kpi{grid-template-columns:repeat(2,1fr) !important}}
   ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:#33415c;border-radius:9px}
   select option{background:#1B2740;color:#E7ECF5}
@@ -377,12 +391,13 @@ function invStatus(inv){
 }
 
 // The reminder ladder: each step fires `offset` days after the due date (negative = before).
+// `mood` is how the step reads to the customer: firmer each time, never rude.
 const LADDER = [
-  { key:"pre",   offset:-3, name:"Friendly heads-up", tone:"friendly: a light heads-up that the invoice is due soon" },
-  { key:"due",   offset:0,  name:"Due today",         tone:"friendly: the invoice is due today" },
-  { key:"r1",    offset:7,  name:"Polite reminder",   tone:"polite: the payment may have slipped through, easy to fix" },
-  { key:"r2",    offset:14, name:"Firm reminder",     tone:"firm but respectful: ask for payment or a date within 7 days" },
-  { key:"final", offset:30, name:"Final notice",      tone:"final notice: clear and serious, pay or contact us within 7 days, still courteous" },
+  { key:"pre",   offset:-3, name:"Friendly heads-up", mood:"😊", tone:"friendly: a light heads-up that the invoice is due soon" },
+  { key:"due",   offset:0,  name:"Due today",         mood:"🙂", tone:"friendly: the invoice is due today" },
+  { key:"r1",    offset:7,  name:"Polite reminder",   mood:"😐", tone:"polite: the payment may have slipped through, easy to fix" },
+  { key:"r2",    offset:14, name:"Firm reminder",     mood:"😬", tone:"firm but respectful: ask for payment or a date within 7 days" },
+  { key:"final", offset:30, name:"Final notice",      mood:"🫡", tone:"final notice: clear and serious, pay or contact us within 7 days, still courteous" },
 ];
 function ladderStep(inv, steps){
   if(inv.paid) return null;
@@ -572,6 +587,85 @@ const PhoneI = p => <Icon {...p} d={<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 
 
 const initials = n => n.split(" ").map(x=>x[0]).slice(0,2).join("");
 const STATUS_COLOR = { Booked:"#7BE0A6", Warm:C.gold, Contacting:C.goldSoft, Cold:C.sub };
+
+// ================== FUN LAYER: sleeping leads, wake-ups, counters, celebrations ==================
+// A lead's journey: asleep (cold) → alarm (contacting) → sun is up (replied) → party (booked).
+const STATUS_ICON = { Cold:"😴", Contacting:"⏰", Warm:"☀️", Booked:"🎉" };
+const REDUCED = (()=>{ try{ return matchMedia("(prefers-reduced-motion: reduce)").matches; }catch{ return false; } })();
+
+function WakeAvatar({ status, size=30 }){
+  const cls={ Cold:"sw-asleep", Contacting:"sw-ring", Warm:"sw-wake", Booked:"sw-pop" }[status];
+  const glow=status==="Warm"?`0 0 12px ${C.gold}77`:status==="Booked"?`0 0 12px ${C.green}99`:"none";
+  return (
+    <div aria-hidden="true" style={{position:"relative",width:size,height:size,borderRadius:999,flexShrink:0,display:"grid",placeItems:"center",fontSize:Math.round(size*0.52),
+      background:status==="Booked"?"#0F3D22":status==="Warm"?"#3A2E12":"#243352",boxShadow:glow,transition:"background .4s, box-shadow .4s"}}>
+      {/* Keyed on status so the animation replays on every change. */}
+      <span key={status} className={cls} style={{display:"inline-block",lineHeight:1}}>{STATUS_ICON[status]}</span>
+      {status==="Cold"&&<span className="sw-zz">z</span>}
+    </div>
+  );
+}
+
+function useCountUp(target, ms=1100){
+  const [v,setV]=useState(target);
+  const from=useRef(target);
+  useEffect(()=>{
+    if(REDUCED){ setV(target); from.current=target; return; }
+    const t0=performance.now(), a=from.current; let raf;
+    const tick=t=>{ const k=Math.min(1,(t-t0)/ms), x=a+(target-a)*(1-Math.pow(1-k,3)); setV(x); from.current=x; if(k<1) raf=requestAnimationFrame(tick); };
+    raf=requestAnimationFrame(tick);
+    return ()=>cancelAnimationFrame(raf);
+  },[target]);
+  return v;
+}
+
+// Header pill: pipeline booked this session plus cash collected this session, counting up.
+function WokenCounter({ booked, collected }){
+  const total=booked+collected, v=useCountUp(total), on=total>0;
+  return (
+    <div title={`Booked quotes this session: ${eur(booked)} · Payments collected this session: ${eur(collected)}`}
+      style={{display:"flex",alignItems:"center",gap:8,background:on?"#3A2E12":C.panel,border:`1px solid ${on?C.gold:C.line}`,borderRadius:999,padding:"5px 14px 5px 8px",transition:"all .4s"}}>
+      <span key={total} className={on?"sw-wake":""} style={{fontSize:20,display:"inline-block"}} aria-hidden="true">{on?"☀️":"😴"}</span>
+      <div style={{lineHeight:1.1}}>
+        <div style={{fontSize:17,fontWeight:800,color:on?C.gold:C.sub,fontVariantNumeric:"tabular-nums"}}>{eur(v)}</div>
+        <div style={{fontSize:10.5,color:C.sub}}>woken up this session</div>
+      </div>
+    </div>
+  );
+}
+
+// A short sun-burst and confetti on a booking or payment. Skipped entirely for reduced motion.
+const CONFETTI = ["#F5B301","#FFE08A","#16A34A","#7DD3FC","#C4B5FD","#FB923C"];
+function Celebration({ party }){
+  const bits=useMemo(()=>Array.from({ length:42 },(_,i)=>({
+    left:Math.random()*100, dx:`${Math.round((Math.random()-.5)*240)}px`, rot:`${Math.round(360+Math.random()*720)}deg`,
+    dur:`${(1.6+Math.random()*1.1).toFixed(2)}s`, delay:`${(Math.random()*.25).toFixed(2)}s`, color:CONFETTI[i%CONFETTI.length], round:i%3===0,
+  })),[party.id]);
+  return (
+    <div aria-hidden="true">
+      <div className="sw-sun">{party.kind==="paid"?"💶":"☀️"}</div>
+      {bits.map((b,i)=><span key={i} className="sw-conf" style={{left:`${b.left}%`,background:b.color,borderRadius:b.round?999:2,
+        "--dx":b.dx,"--rot":b.rot,"--dur":b.dur,"--delay":b.delay}}/>)}
+    </div>
+  );
+}
+
+function MoodMeter({ ladder, current }){
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:4}} title="Reminder tone: friendlier on the left, firmer on the right">
+      {ladder.map((st,k)=>{
+        const on=current&&st.key===current.key;
+        return (
+          <React.Fragment key={st.key}>
+            {k>0&&<span style={{width:10,height:2,background:"#E5E7EB",borderRadius:9}}/>}
+            <span title={`${st.name}${st.on?"":" (switched off)"}`} style={{fontSize:on?20:14,opacity:!st.on?.25:on?1:.55,transition:"all .3s",
+              padding:on?"1px 4px":0,borderRadius:999,background:on?"#FEF3C7":"transparent",textDecoration:st.on?"none":"line-through"}}>{st.mood}</span>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
 const panel = { background:C.panel, border:`1px solid ${C.line}`, borderRadius:18, padding:18 };
 const label = { fontSize:11.5, color:C.sub, letterSpacing:0.6, textTransform:"uppercase", fontWeight:700 };
 
@@ -638,6 +732,7 @@ function App(){
   const [typingId,setTypingId]=useState(null);
   const [input,setInput]=useState("");
   const [toast,setToast]=useState(null);
+  const [party,setParty]=useState(null);   // { id, kind:"booked"|"paid" } while a celebration plays
   const [demoMode,setDemoMode]=useState(false);
   const [campaign,setCampaign]=useState(false);
   const [emailCfg,setEmailCfg]=useState({ enabled:false, inbox:null });
@@ -676,6 +771,11 @@ function App(){
       funnel:["Cold","Contacting","Warm","Booked"].map(s=>({ s, n:v.filter(l=>l.status===s).length })),
     };
   },[leads,companyId,segFilter]);
+  // Session-only money for the header counter: live transactions have ids starting "TX-L".
+  const woken=useMemo(()=>({
+    booked:leads.filter(l=>l.status==="Booked").reduce((s,l)=>s+l.quote,0),
+    collected:txns.filter(t=>t.id.startsWith("TX-L")&&t.dir==="in").reduce((s,t)=>s+t.amount,0),
+  }),[leads,txns]);
 
   useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[messages.length,typing]);
   useEffect(()=>()=>timers.current.forEach(clearTimeout),[]);
@@ -711,6 +811,11 @@ function App(){
   const later=(fn,ms)=>timers.current.push(setTimeout(fn,ms));
   const log=(text,kind="sys")=>setActivity(a=>[{ t:now(), text, kind }, ...a].slice(0,50));
   const flash=(text,color=C.green)=>{ setToast({text,color}); later(()=>setToast(null),4200); };
+  const celebrate=kind=>{
+    if(REDUCED) return;
+    const id=Date.now()+Math.random();
+    setParty({ id, kind }); later(()=>setParty(p=>p&&p.id===id?null:p),3000);
+  };
   const setConvo=(id,fn)=>setConvos(c=>({ ...c, [id]:fn(c[id]||[]) }));
   const setLeadStatus=(id,status,extra={})=>setLeads(ls=>ls.map(l=>l.id!==id||l.status==="Booked"?l:{ ...l, status, ...extra }));
 
@@ -872,6 +977,7 @@ function App(){
     patchInv(inv.id,{ paid:ymd(today0()), method, flag:null });
     addTxn({ co:inv.co, party:inv.name, seg:inv.seg, type:"Payment received", dir:"in", amount:inv.amount, method, ref:inv.id, doc:`Payment-${inv.id}.pdf`, account:"Bank" });
     flash(`✓ ${inv.id} paid — ${eur(inv.amount)}`);
+    celebrate("paid");
     log(`💶 ${inv.name} paid ${inv.id} (${eur(inv.amount)}) ${via}`,"win");
   }
   function startInstalments(inv){
@@ -879,6 +985,7 @@ function App(){
     patchInv(inv.id,{ flag:"Instalment plan: 1 of 3 paid" });
     addTxn({ co:inv.co, party:inv.name, seg:inv.seg, type:"Instalment received", dir:"in", amount:part, method:"Card", ref:inv.id, doc:`Instalment-1-${inv.id}.pdf`, account:"Bank" });
     flash(`✓ Instalment plan started for ${inv.id} — ${eur(part)} paid`);
+    celebrate("paid");
     log(`💶 ${inv.name} started a 3-month plan on ${inv.id} (${eur(part)} paid)`,"win");
   }
   function reportProblem(inv){
@@ -939,6 +1046,7 @@ function App(){
   function markBooked(l, appointment, via, history){
     setLeadStatus(l.id,"Booked",{ appointment, via });
     flash(`✓ ${l.name} booked — ${appointment} 🎉`);
+    celebrate("booked");
     log(`📅 ${l.name} booked ${appointment} ${via}`,"win");
     makeBrief(l, history, via);
   }
@@ -997,7 +1105,7 @@ function App(){
   function reset(){
     timers.current.forEach(clearTimeout); timers.current=[]; busy.current.clear();
     setLeads(INITIAL_LEADS); setConvos({}); setBriefs({}); setActivity(SEED_ACTIVITY);
-    setTypingId(null); setCampaign(false); setInput(""); setToast(null);
+    setTypingId(null); setCampaign(false); setInput(""); setToast(null); setParty(null);
     setSegFilter("All"); setCompanyId("SW-001"); setLeadId(FIRST_LEAD);
     setInvoices(INITIAL_INVOICES); setInvConvos({}); setTxns(INITIAL_TXNS); setInvTyping(null);
     setLadder(LADDER.map(s=>({ ...s, on:true }))); setInvId(firstOpenInvoice(INITIAL_INVOICES,"SW-001"));
@@ -1010,9 +1118,9 @@ function App(){
     onBack={unsub.fromApp?()=>setUnsub(null):null}/>;
   if(page==="landing") return <Landing lang={lang} setLang={setLang} openApp={openApp}/>;
 
-  const sMeta={ Cold:{label:"Cold · dormant",color:C.sub,bg:"#1E2A44"},
-    Contacting:{label:"Contacting…",color:C.goldSoft,bg:"#3A2E12"},
-    Warm:{label:"Warm · engaged",color:C.gold,bg:"#3A2E12"},
+  const sMeta={ Cold:{label:"😴 Cold · asleep",color:C.sub,bg:"#1E2A44"},
+    Contacting:{label:"⏰ Contacting… alarm set",color:C.goldSoft,bg:"#3A2E12"},
+    Warm:{label:"☀️ Warm · awake again",color:C.gold,bg:"#3A2E12"},
     Booked:{label:"Appointment booked",color:"#BBF7D0",bg:"#0F3D22"} }[lead?lead.status:"Cold"];
 
   return (
@@ -1027,6 +1135,7 @@ function App(){
               <div style={{fontSize:12.5,color:C.sub,marginTop:-2}}>Recover the revenue you've already earned · ← homepage</div>
             </div>
           </button>
+          <WokenCounter booked={woken.booked} collected={woken.collected}/>
           <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
             <button onClick={()=>setDemoMode(d=>!d)} title="Rehearsal mode never sends real emails. Use it to practise the demo."
               style={{display:"inline-flex",alignItems:"center",gap:7,fontSize:12,fontWeight:700,cursor:"pointer",
@@ -1096,6 +1205,7 @@ function App(){
           {toast.text}
         </div>
       )}
+      {party&&<Celebration key={party.id} party={party}/>}
     </div>
   );
 }
@@ -1156,7 +1266,7 @@ function Console(p){
           {kpi.funnel.map((f,i)=>(
             <div key={f.s}>
               <div style={{display:"flex",justifyContent:"space-between",fontSize:11.5,marginBottom:5}}>
-                <span style={{color:C.sub,fontWeight:700}}>{i>0?"→ ":""}{f.s}</span><span style={{fontWeight:800,color:STATUS_COLOR[f.s]}}>{f.n}</span>
+                <span style={{color:C.sub,fontWeight:700}}>{i>0?"→ ":""}<span aria-hidden="true">{STATUS_ICON[f.s]} </span>{f.s}</span><span style={{fontWeight:800,color:STATUS_COLOR[f.s]}}>{f.n}</span>
               </div>
               <div style={{height:8,background:C.night,borderRadius:99,overflow:"hidden"}}>
                 <div style={{height:"100%",width:`${100*f.n/maxFunnel}%`,background:STATUS_COLOR[f.s],borderRadius:99,transition:"width .5s ease"}}/>
@@ -1167,7 +1277,7 @@ function Console(p){
         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
           <button onClick={runCampaign} disabled={campaign}
             style={{background:campaign?C.panel2:C.gold,color:campaign?C.sub:C.night,border:"none",borderRadius:11,padding:"10px 16px",fontWeight:800,fontSize:13.5,cursor:campaign?"default":"pointer",whiteSpace:"nowrap"}}>
-            {campaign?"Campaign running…":`🚀 Reactivate all cold leads (${coldCount})`}
+            {campaign?"⏰ Ringing alarms…":`⏰ Wake up all cold leads (${coldCount})`}
           </button>
           <span style={{fontSize:10.5,color:C.sub}}>Each lead gets its own playbook · replies simulated in demo{noConsent?` · ${noConsent} skipped (no consent)`:""}</span>
         </div>
@@ -1182,8 +1292,9 @@ function Console(p){
               borderRadius:14,padding:16,marginBottom:14,
               boxShadow:lead.status==="Booked"?`0 0 24px ${C.green}44`:lead.status!=="Cold"?`0 0 20px ${C.gold}22`:"none",transition:"all .45s ease"}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
-                <div style={{width:44,height:44,borderRadius:999,background:"#2A3A5C",display:"grid",placeItems:"center",fontWeight:700,fontSize:13,color:C.goldSoft,flexShrink:0}}>
+                <div style={{position:"relative",width:44,height:44,borderRadius:999,background:"#2A3A5C",display:"grid",placeItems:"center",fontWeight:700,fontSize:13,color:C.goldSoft,flexShrink:0}}>
                   {lead.seg==="Commercial"?"🏢":initials(lead.name)}
+                  <div style={{position:"absolute",right:-6,bottom:-6}}><WakeAvatar status={lead.status} size={24}/></div>
                 </div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -1256,9 +1367,7 @@ function Console(p){
                 <button key={l.id} onClick={()=>pickLead(l.id)}
                   style={{textAlign:"left",display:"flex",alignItems:"center",gap:11,background:active?C.panel2:C.night,
                     border:`1px solid ${active?C.gold:C.line}`,borderRadius:11,padding:"10px 12px",cursor:"pointer",width:"100%"}}>
-                  <div style={{width:30,height:30,borderRadius:999,background:"#243352",display:"grid",placeItems:"center",fontSize:14,flexShrink:0}}>
-                    {PLAYBOOKS[l.seg].icon}
-                  </div>
+                  <WakeAvatar status={l.status}/>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
                       <span style={{fontSize:13,fontWeight:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{l.name}</span>
@@ -1747,12 +1856,14 @@ function InvoicesView(p){
         </div>
         <div style={{...panel,padding:14}}>
           <div style={{...label,marginBottom:4}}>Reminder schedule</div>
-          <div style={{fontSize:11.5,color:C.sub,marginBottom:10}}>Each step gets firmer. Reminders stop the moment a customer pays, promises a date or reports a problem.</div>
+          <div style={{fontSize:11.5,color:C.sub,marginBottom:10}}>From a smile to a salute: each step gets firmer, never rude. Reminders stop the moment a customer pays, promises a date or reports a problem.</div>
           {ladder.map((st,k)=>(
-            <label key={st.key} style={{display:"flex",alignItems:"center",gap:10,fontSize:12.5,padding:"5px 0",cursor:"pointer"}}>
+            <label key={st.key} style={{display:"flex",alignItems:"center",gap:10,fontSize:12.5,padding:"5px 0",cursor:"pointer",opacity:st.on?1:.55}}>
               <input type="checkbox" checked={st.on} onChange={e=>setLadder(l=>l.map((x,j)=>j===k?{ ...x, on:e.target.checked }:x))} style={{accentColor:C.gold,width:16,height:16}}/>
               <span style={{width:74,color:C.sub,fontVariantNumeric:"tabular-nums"}}>{st.offset<0?`${-st.offset} days before`:st.offset===0?"On due date":`${st.offset} days after`}</span>
+              <span aria-hidden="true" style={{fontSize:17,width:22,textAlign:"center"}}>{st.mood}</span>
               <b>{st.name}</b>
+              <span style={{flex:1,height:4,borderRadius:9,marginLeft:4,background:`linear-gradient(90deg,#7DD3FC,${["#7DD3FC","#A7F3D0","#FDE68A","#FDBA74","#FCA5A5"][k]})`,opacity:.5}}/>
             </label>
           ))}
           <div style={{fontSize:11,color:C.sub,marginTop:6}}>B2B: after a final notice, EU late-payment rules allow a flat €40 compensation plus statutory interest. SolarWake flags it for you; it never adds fees on its own.</div>
@@ -1774,7 +1885,7 @@ function InvoicesView(p){
                       <span style={{fontSize:13,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{i.name}</span>
                       <SegBadge seg={i.seg} small/>
                     </div>
-                    <div style={{fontSize:11,color:C.sub}}>{i.id} · {i.milestone} · due {fmtD(i.due)}{optOuts[i.cid]&&!i.paid?" · 🚫 unsubscribed":i.flag?` · ${i.flag}`:step&&!i.paid?` · next: ${step.name}`:""}</div>
+                    <div style={{fontSize:11,color:C.sub}}>{i.id} · {i.milestone} · due {fmtD(i.due)}{optOuts[i.cid]&&!i.paid?" · 🚫 unsubscribed":i.flag?` · ${i.flag}`:step&&!i.paid?` · next: ${step.mood} ${step.name}`:""}</div>
                   </div>
                   <div style={{textAlign:"right",flexShrink:0}}>
                     <div style={{fontSize:13,fontWeight:800}}>{eur(i.amount)}</div>
@@ -1821,9 +1932,14 @@ function InvoicePane({ inv, convo, typing, ladder, sendReminder, customerSend, m
         {!inv.paid&&(
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
             {optedOut ? <span style={{...btn("#FEE2E2","#991B1B"),cursor:"default"}}>🚫 Unsubscribed {fmtD(optedOut)}</span>
-              : <button onClick={()=>sendReminder(inv,step)} disabled={typing} style={{...btn("#1E3A8A","#fff"),opacity:typing?.5:1}}>📨 Send “{step.name}”</button>}
+              : <button onClick={()=>sendReminder(inv,step)} disabled={typing} style={{...btn("#1E3A8A","#fff"),opacity:typing?.5:1}}>{step.mood} Send “{step.name}”</button>}
             <button onClick={()=>markPaid(inv,"SEPA transfer","by bank transfer (marked manually)")} style={btn("#DCFCE7","#166534")}>✓ Mark as paid</button>
             <button onClick={()=>openPay(inv.id)} style={btn("#F3F4F6","#1F2937")}>Pay page ↗</button>
+          </div>
+        )}
+        {!inv.paid&&!optedOut&&(
+          <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,fontSize:11.5,color:muted}}>
+            <span>Reminder tone</span><MoodMeter ladder={ladder} current={ladderStep(inv,ladder)}/>
           </div>
         )}
       </div>
