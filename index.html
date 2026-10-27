@@ -184,28 +184,46 @@ const CHANNELS = {
 };
 const agentEmail = co => `lina@${co.slug}.solarwake.app`;
 const dmName = l => l.dm ? l.dm.replace(/\s*\(.*\)$/,"") : l.name;
-const signoff = (co, biz) => `Kind regards,\nLina\n${co.name}${biz?" Business Energy":""}`;
+// Lead conversations are written in the language stamped on the lead when Lina starts (`lead.lang`: "en" | "de").
+const de = l => l.lang==="de";
+const deNum = n => String(n).replace(".",",");
+const kwOf = l => de(l) ? deNum(l.kw) : l.kw;
+const yearsOf = (l, p) => !de(l) ? fmtYears(p) : p==null ? "über 25 Jahren" : `${deNum(p.toFixed(1))} Jahren`;
+const signoff = (co, biz, lang="en") => `${lang==="de"?"Mit freundlichen Grüßen":"Kind regards,"}\nLina\n${co.name}${biz?" Business Energy":""}`;
+const greet = l => l.seg==="Commercial" ? `${de(l)?"Guten Tag":"Dear"} ${dmName(l)}` : de(l) ? `Guten Tag ${l.name}` : `Hi ${first(l.name)}`;
 
 const CHANNEL_STYLE = {
   whatsapp:biz=>`Channel: WhatsApp. Short messages (${biz?"1-3 sentences, no emoji":"1-2 sentences, an occasional emoji"}).`,
-  email:(biz,co)=>`Channel: email. Write only the email body: greet them by name, 2-4 short paragraphs, then sign off with "Kind regards,", "Lina" and "${co.name}${biz?" Business Energy":""}" on separate lines. Plain text, no emoji, under 160 words. No subject line.`,
+  email:(biz,co,lang)=>`Channel: email. Write only the email body: greet them by name, 2-4 short paragraphs, then sign off with "${lang==="de"?"Mit freundlichen Grüßen":"Kind regards,"}", "Lina" and "${co.name}${biz?" Business Energy":""}" on separate lines. Plain text, no emoji, under 160 words. No subject line.`,
 };
+const LANG_RULE = l => de(l) ? `Write in German and address them formally with "Sie". Keep the JSON keys and status values in English.` : "Write in English.";
 
 const PLAYBOOKS = {
   Residential: {
     tag:"B2C", label:"Homeowner playbook", color:C.b2c, icon:"🏠",
     focus:"Bill savings · financing · price-lock deadline",
-    quick:["Oh right, I forgot about this","It's honestly a bit expensive","I already got another quote","Does it really lower my bill?","Ok sure — when can we talk?","Please stop messaging me"],
-    replies:["Oh right, I forgot about this — still interested actually","Is the price still the same?","Hmm, how much would I really save?"],
+    quick:{
+      en:["Oh right, I forgot about this","It's honestly a bit expensive","I already got another quote","Does it really lower my bill?","Ok sure — when can we talk?","Please stop messaging me"],
+      de:["Ach ja, das hatte ich vergessen","Ehrlich gesagt ist mir das zu teuer","Ich habe schon ein anderes Angebot","Spare ich damit wirklich Geld?","Okay, wann können wir sprechen?","Stopp, bitte keine Nachrichten mehr"],
+    },
+    replies:{
+      en:["Oh right, I forgot about this — still interested actually","Is the price still the same?","Hmm, how much would I really save?"],
+      de:["Ach ja, das hatte ich vergessen – eigentlich schon noch interessiert","Gilt der Preis noch?","Hm, wie viel würde ich wirklich sparen?"],
+    },
     opener:{
-      whatsapp:(l,co)=>({ text:`Hi ${first(l.name)}! 👋 It's Lina from ${co.name}. A while back we put together a solar quote for your home — your price is still held for ${ECON.priceLockDays} more days, so I wanted to check in. Are you still thinking about going solar? ☀️` }),
-      email:(l,co)=>({ subject:`Your solar quote for ${l.city} — price still held`,
-        text:`Hi ${first(l.name)},\n\nA few weeks ago we put together a quote for a ${l.kw} kW solar system on your home. Your price is still held for ${ECON.priceLockDays} more days, so I wanted to check in before it expires.\n\nAre you still thinking about going solar? I'm happy to re-run the numbers with today's electricity prices.\n\n${signoff(co,false)}` }),
+      whatsapp:(l,co)=>({ text:de(l)
+        ? `Hallo ${first(l.name)}! 👋 Hier ist Lina von ${co.name}. Vor einiger Zeit haben wir Ihnen ein Solarangebot für Ihr Haus erstellt. Ihr Preis gilt noch ${ECON.priceLockDays} Tage, deshalb wollte ich kurz nachfragen: Ist Solar für Sie noch ein Thema? ☀️`
+        : `Hi ${first(l.name)}! 👋 It's Lina from ${co.name}. A while back we put together a solar quote for your home — your price is still held for ${ECON.priceLockDays} more days, so I wanted to check in. Are you still thinking about going solar? ☀️` }),
+      email:(l,co)=>de(l) ? ({ subject:`Ihr Solarangebot für ${l.city}: Preis weiterhin reserviert`,
+        text:`${greet(l)},\n\nvor einigen Wochen haben wir für Ihr Haus ein Angebot über eine ${kwOf(l)}-kW-Solaranlage erstellt. Ihr Preis ist noch ${ECON.priceLockDays} Tage reserviert, deshalb melde ich mich, bevor er ausläuft.\n\nIst Solar für Sie noch ein Thema? Gerne rechne ich die Zahlen mit den aktuellen Strompreisen neu.\n\n${signoff(co,false,"de")}` })
+        : ({ subject:`Your solar quote for ${l.city} — price still held`,
+        text:`${greet(l)},\n\nA few weeks ago we put together a quote for a ${l.kw} kW solar system on your home. Your price is still held for ${ECON.priceLockDays} more days, so I wanted to check in before it expires.\n\nAre you still thinking about going solar? I'm happy to re-run the numbers with today's electricity prices.\n\n${signoff(co,false)}` }),
     },
     system:(l,co,ch)=>`You are SolarWake, an AI reactivation assistant for ${co.name}, following up as "Lina".
 You are writing to homeowner ${l.name}, who received a solar quote and then went quiet.
 Playbook (B2C homeowner): warm, empathetic, never pushy. Focus on a lower electricity bill, financing with no big upfront payment, and the honest price-lock deadline. When they ask about cost or savings, share their personal page link once.
-${CHANNEL_STYLE[ch](false,co)}
+${LANG_RULE(l)}
+${CHANNEL_STYLE[ch](false,co,l.lang)}
 ${leadFacts(l,co)}
 Goal: book a free 15-minute call with a human advisor. Offer two specific time slots.
 ${JSON_RULES}`,
@@ -213,17 +231,28 @@ ${JSON_RULES}`,
   Commercial: {
     tag:"B2B", label:"Business playbook", color:C.b2b, icon:"🏢",
     focus:"ROI & payback · depreciation · ESG · decision-maker",
-    quick:["Send me the ROI numbers","Cash flow is tight this year","Our CFO needs to sign off","What's the payback period?","Fine — book a call with our CFO","Please remove us from your list"],
-    replies:["Yes, still on our list. What would the payback be?","Send over the updated numbers please","Timing is tricky, but let's hear it"],
+    quick:{
+      en:["Send me the ROI numbers","Cash flow is tight this year","Our CFO needs to sign off","What's the payback period?","Fine — book a call with our CFO","Please remove us from your list"],
+      de:["Schicken Sie mir die ROI-Zahlen","Die Liquidität ist dieses Jahr knapp","Unser CFO muss zustimmen","Wie lange ist die Amortisationszeit?","Gut, buchen Sie einen Termin mit unserem CFO","Bitte nehmen Sie uns von Ihrer Liste"],
+    },
+    replies:{
+      en:["Yes, still on our list. What would the payback be?","Send over the updated numbers please","Timing is tricky, but let's hear it"],
+      de:["Ja, steht noch auf unserer Liste. Wie wäre die Amortisation?","Schicken Sie gern die aktualisierten Zahlen","Zeitlich schwierig, aber erzählen Sie mal"],
+    },
     opener:{
-      whatsapp:(l,co)=>({ text:`Hello ${l.dm?first(l.dm):"there"}, this is Lina from ${co.name} Business Energy. We prepared a ${l.kw} kW rooftop proposal for ${l.name} a few weeks ago — with current power prices the business case has improved. Is energy cost still on your agenda this year?` }),
-      email:(l,co)=>({ subject:`Updated business case: ${l.kw} kW rooftop solar for ${l.name}`,
-        text:`Dear ${dmName(l)},\n\nA few weeks ago we prepared a ${l.kw} kW rooftop solar proposal for ${l.name}. Since then electricity prices have moved, and the business case has improved.\n\nIs reducing energy cost still on your agenda this year? If useful, I can send you the updated figures.\n\n${signoff(co,true)}` }),
+      whatsapp:(l,co)=>({ text:de(l)
+        ? `Guten Tag${l.dm?` ${dmName(l)}`:""}, hier ist Lina von ${co.name} Business Energy. Wir haben vor einigen Wochen ein Angebot für eine ${kwOf(l)}-kW-Dachanlage für ${l.name} erstellt. Mit den aktuellen Strompreisen hat sich die Wirtschaftlichkeit verbessert. Steht das Thema Energiekosten dieses Jahr noch auf Ihrer Agenda?`
+        : `Hello ${l.dm?first(l.dm):"there"}, this is Lina from ${co.name} Business Energy. We prepared a ${l.kw} kW rooftop proposal for ${l.name} a few weeks ago — with current power prices the business case has improved. Is energy cost still on your agenda this year?` }),
+      email:(l,co)=>de(l) ? ({ subject:`Aktualisierte Wirtschaftlichkeit: ${kwOf(l)}-kW-Dachanlage für ${l.name}`,
+        text:`${greet(l)},\n\nvor einigen Wochen haben wir für ${l.name} ein Angebot für eine ${kwOf(l)}-kW-Solaranlage auf dem Dach erstellt. Seitdem haben sich die Strompreise bewegt, und die Wirtschaftlichkeit hat sich verbessert.\n\nSteht die Senkung der Energiekosten dieses Jahr noch auf Ihrer Agenda? Gerne sende ich Ihnen die aktualisierten Zahlen.\n\n${signoff(co,true,"de")}` })
+        : ({ subject:`Updated business case: ${l.kw} kW rooftop solar for ${l.name}`,
+        text:`${greet(l)},\n\nA few weeks ago we prepared a ${l.kw} kW rooftop solar proposal for ${l.name}. Since then electricity prices have moved, and the business case has improved.\n\nIs reducing energy cost still on your agenda this year? If useful, I can send you the updated figures.\n\n${signoff(co,true)}` }),
     },
     system:(l,co,ch)=>`You are SolarWake, an AI reactivation assistant for ${co.name} Business Energy, following up as "Lina".
 You are writing to ${l.dm||"the decision-maker"} at ${l.name}, a commercial lead that received a rooftop solar proposal and then went quiet.
 Playbook (B2B commercial): professional and concise, no hype. Speak to annual savings, payback period, operating-cost reduction, depreciation and CO2 figures for ESG reporting. If they mention a CFO, owner, partner or board, aim to book a call that includes that decision-maker. Share their business-case page link once when they ask for numbers.
-${CHANNEL_STYLE[ch](true,co)}
+${LANG_RULE(l)}
+${CHANNEL_STYLE[ch](true,co,l.lang)}
 ${leadFacts(l,co)}
 Goal: book a 20-minute call with a commercial advisor (and their decision-maker). Offer two specific time slots.
 ${JSON_RULES}`,
@@ -233,22 +262,45 @@ ${JSON_RULES}`,
 // ================== REPLY TEMPLATES (no paid AI needed) ==================
 // The agent reads the lead's reply with keyword rules, answers that objection from the playbook,
 // and moves toward a booking from the second reply on. With USE_CLAUDE on, Claude writes replies instead.
+// Each rule matches English and German replies.
 function classifyLead(text){
   const t=text.toLowerCase();
-  if(/who gave you|how did you get (my|this|our)|leave (me|us) alone|\bspam\b|annoy|harass/.test(t)) return "upset";
+  if(/who gave you|how did you get (my|this|our)|leave (me|us) alone|\bspam\b|annoy|harass|woher haben sie|wer hat ihnen|lassen sie (mich|uns) in ruhe|belästig/.test(t)) return "upset";
   if(/\bbook\b|schedule|when can we (talk|meet)|let'?s (talk|meet)|set up a call|call (me|us)\b|works for (me|us)|sounds good|(monday|tuesday|wednesday|thursday|friday)\b.*\b(works|is fine|ok|good)\b|^(ok|okay|sure|yes)[\s,!.—-]*$/.test(t)) return "book";
-  if(/expensive|price|cost|afford|too much/.test(t)) return "price";
-  if(/another quote|other quote|competitor|compar|cheaper offer/.test(t)) return "competitor";
-  if(/\bcfo\b|sign off|sign-off|board|boss|partner|wife|husband|approv/.test(t)) return "decider";
-  if(/cash ?flow|budget|tight/.test(t)) return "cashflow";
-  if(/save|saving|bill|\broi\b|payback|numbers|figures/.test(t)) return "numbers";
-  if(/timing|later|not now|next year|busy|tricky/.test(t)) return "timing";
-  if(/forgot|still interested|still on our list|interested|\byes\b/.test(t)) return "interest";
+  if(/\bbuchen\b|\btermin\b|wann können wir (sprechen|telefonieren|reden)|passt (mir|uns)|(montag|dienstag|mittwoch|donnerstag|freitag)\b.*\b(passt|geht|ok|gut)\b|^(ja|gut|gerne|einverstanden)[\s,!.—-]*$/.test(t)) return "book";
+  if(/expensive|price|cost|afford|too much|teuer|preis|kosten|zu viel|leisten/.test(t)) return "price";
+  if(/another quote|other quote|competitor|compar|cheaper offer|anderes angebot|anderen angebot|konkurren|vergleich|günstiger/.test(t)) return "competitor";
+  if(/\bcfo\b|sign off|sign-off|board|boss|partner|wife|husband|approv|zustimm|freigabe|geschäftsführ|vorstand|\bchef|meine frau|mein mann/.test(t)) return "decider";
+  if(/cash ?flow|budget|tight|liquidität|knapp/.test(t)) return "cashflow";
+  if(/save|saving|bill|\broi\b|payback|numbers|figures|spar|rechnung|amortis|zahlen|rendite/.test(t)) return "numbers";
+  if(/timing|later|not now|next year|busy|tricky|später|nicht jetzt|nächstes jahr|keine zeit|zeitlich/.test(t)) return "timing";
+  if(/forgot|still interested|still on our list|interested|\byes\b|vergessen|interess|\bja\b/.test(t)) return "interest";
   return "other";
 }
 
 function leadAnswer(l, co, intent){
   const m=solarModel(l,co,{ bill:l.bill }), link=portalUrl(l,co);
+  if(de(l)) return (l.seg==="Commercial" ? {
+    numbers:`Zu heutigen Preisen spart die ${kwOf(l)}-kW-Anlage etwa ${eur(m.savings)} pro Jahr, bei einer Amortisationszeit von etwa ${yearsOf(l,m.payback)}. Die vollständige Wirtschaftlichkeitsrechnung inklusive Abschreibung und CO₂-Werten für Ihr ESG-Reporting finden Sie hier: ${link}`,
+    decider:"Verstanden, das ist meist eine Entscheidung auf CFO-Ebene. Ich kann eine einseitige ROI-Zusammenfassung vorbereiten, damit das Gespräch kurz und auf den Punkt ist.",
+    cashflow:"Ein häufiger Punkt. Die Finanzierung lässt sich so gestalten, dass die monatliche Ersparnis den Großteil der Rate deckt, sodass die Anlage früh nahezu liquiditätsneutral ist.",
+    price:`Verstanden. Bei etwa ${eur(m.savings)} Ersparnis pro Jahr hat sich die Anlage nach rund ${yearsOf(l,m.payback)} amortisiert, und eine Finanzierung verteilt die Kosten. Details: ${link}`,
+    competitor:"Ein Vergleich ist sinnvoll. Gerne gehen wir beide Angebote Punkt für Punkt durch: Ertrag, Garantien und Gesamtbetriebskosten.",
+    timing:`Verstanden. Der angebotene Preis gilt noch ${ECON.priceLockDays} Tage, ein kurzes Gespräch hält Ihnen die Option also ohne Verpflichtung offen.`,
+    interest:`Schön, dass das Thema noch auf der Agenda steht. Ich habe die Wirtschaftlichkeitsrechnung mit aktuellen Preisen aktualisiert: ${link}`,
+    other:`Vielen Dank für Ihre Rückmeldung. Die aktualisierte Wirtschaftlichkeitsrechnung mit Amortisation und CO₂-Werten finden Sie hier: ${link}`,
+    upset:`Entschuldigen Sie die Störung. ${l.name} hat vor ${l.days} Tagen bei ${co.name} ein Angebot für eine Solaranlage angefragt (über ${l.src}), daher stammen Ihre Kontaktdaten. Wenn Sie keine weiteren Nachrichten wünschen, antworten Sie mit STOPP, und wir melden uns nicht mehr.`,
+  } : {
+    numbers:`Ja. Bei Ihrer Stromrechnung von ${eur(l.bill)} im Monat sparen Sie etwa ${eur(m.savings/12)} pro Monat (${eur(m.savings)} im Jahr), und die Anlage hat sich nach etwa ${yearsOf(l,m.payback)} amortisiert. Ihre Zahlen finden Sie hier: ${link}`,
+    price:`Absolut verständlich. Mit einer Finanzierung fällt keine große Anzahlung an, und auf Ihrer Seite sehen Sie die Monatsrate direkt neben Ihrer monatlichen Ersparnis: ${link}`,
+    competitor:"Gut, dass Sie vergleichen! Gerne gehen wir beide Angebote gemeinsam durch (Module, Garantie und Preis), damit Sie mit gutem Gefühl entscheiden.",
+    timing:`Kein Stress. Ihr Preis ist noch ${ECON.priceLockDays} Tage reserviert, ein kurzes Gespräch hält Ihnen die Option also einfach offen.`,
+    interest:`Kein Problem, das passiert! Ich habe Ihre Zahlen mit den aktuellen Preisen neu berechnet: etwa ${eur(m.savings)} Ersparnis pro Jahr. Alles finden Sie hier: ${link}`,
+    decider:"Natürlich, das entscheidet man gemeinsam. Wir legen das Gespräch so, dass Sie beide dabei sein können, und ich schicke Ihnen die Zahlen vorab.",
+    cashflow:`Absolut nachvollziehbar. Mit einer Finanzierung fällt keine große Anzahlung an, und Sie sparen ab dem ersten Tag: ${link}`,
+    other:`Danke für Ihre Rückmeldung! Ihre aktualisierten Zahlen mit Finanzierungsoptionen finden Sie hier: ${link}`,
+    upset:`Entschuldigen Sie die Störung. Sie hatten Ihre Daten bei ${co.name} hinterlassen, als Sie vor ${l.days} Tagen ein Solarangebot angefragt haben (über ${l.src}). Wenn Sie keine Nachrichten mehr möchten, antworten Sie einfach STOPP, und wir melden uns nicht mehr.`,
+  })[intent];
   const A = l.seg==="Commercial" ? {
     numbers:`At today's prices the ${l.kw} kW system saves about ${eur(m.savings)} a year, with a payback of about ${fmtYears(m.payback)}. The full business case, including depreciation and CO₂ figures for your ESG reporting, is here: ${link}`,
     decider:"Understood, that's usually a CFO-level decision. I can prepare a one-page ROI summary for them, so the call is short and to the point.",
@@ -274,26 +326,31 @@ function leadAnswer(l, co, intent){
 }
 
 const slotAsk = l => l.seg==="Commercial"
-  ? "Would a 20-minute call with you and your CFO work on Tuesday at 10:00 or Wednesday at 14:00?"
-  : "Shall I book you a free 15-minute call with an advisor, Thursday at 18:00 or Friday at 10:00?";
+  ? (de(l) ? "Würde Ihnen ein 20-minütiges Gespräch mit Ihnen und Ihrem CFO am Dienstag um 10:00 oder am Mittwoch um 14:00 passen?"
+           : "Would a 20-minute call with you and your CFO work on Tuesday at 10:00 or Wednesday at 14:00?")
+  : (de(l) ? "Soll ich Ihnen ein kostenloses 15-minütiges Gespräch mit unserem Beratungsteam buchen, am Donnerstag um 18:00 oder Freitag um 10:00?"
+           : "Shall I book you a free 15-minute call with an advisor, Thursday at 18:00 or Friday at 10:00?");
 function pickSlot(l, text){
-  const t=text.toLowerCase();
-  if(l.seg==="Commercial") return /wednesday|14/.test(t)?"Wednesday 14:00":"Tuesday 10:00";
-  return /friday|morning|\b10\b/.test(t)?"Friday 10:00":"Thursday 18:00";
+  const t=text.toLowerCase(), d=de(l);
+  if(l.seg==="Commercial") return /wednesday|mittwoch|14/.test(t)?(d?"Mittwoch 14:00":"Wednesday 14:00"):(d?"Dienstag 10:00":"Tuesday 10:00");
+  return /friday|freitag|morning|vormittag|\b10\b/.test(t)?(d?"Freitag 10:00":"Friday 10:00"):(d?"Donnerstag 18:00":"Thursday 18:00");
 }
 
 function leadReply(l, co, history){
-  const last=history[history.length-1].text, intent=classifyLead(last), biz=l.seg==="Commercial";
+  const last=history[history.length-1].text, intent=classifyLead(last), biz=l.seg==="Commercial", email=l.channel==="email";
   const turn=history.filter(m=>m.role==="customer").length;
   let body, status="warm", appointment=null, ask=false;
   if(intent==="book"){
     appointment=pickSlot(l,last); status="booked";
-    body=biz?`Confirmed: ${appointment} with our commercial advisor. I'll send a calendar invitation and a one-page ROI summary for your CFO beforehand.`
-            :`Perfect, you're booked for ${appointment}. ${l.channel==="email"?"A calendar invitation is on its way.":"You'll get a confirmation shortly. Talk soon! ☀️"}`;
+    body=de(l)
+      ? (biz?`Bestätigt: ${appointment} mit unserem Berater für Gewerbekunden. Ich sende Ihnen vorab eine Kalendereinladung und eine einseitige ROI-Zusammenfassung für Ihren CFO.`
+            :`Perfekt, Ihr Termin ist gebucht: ${appointment}. ${email?"Eine Kalendereinladung ist unterwegs.":"Sie erhalten gleich eine Bestätigung. Bis bald! ☀️"}`)
+      : (biz?`Confirmed: ${appointment} with our commercial advisor. I'll send a calendar invitation and a one-page ROI summary for your CFO beforehand.`
+            :`Perfect, you're booked for ${appointment}. ${email?"A calendar invitation is on its way.":"You'll get a confirmation shortly. Talk soon! ☀️"}`);
   } else if(intent==="upset"){ body=leadAnswer(l,co,intent); status="contacting"; }   // no pitch, no slot ask
   else { body=leadAnswer(l,co,intent); ask=turn>=2; }
-  const message = l.channel==="email"
-    ? `${biz?`Dear ${dmName(l)}`:`Hi ${first(l.name)}`},\n\n${body}${ask?`\n\n${slotAsk(l)}`:""}\n\n${signoff(co,biz)}`
+  const message = email
+    ? `${greet(l)},\n\n${body}${ask?`\n\n${slotAsk(l)}`:""}\n\n${signoff(co,biz,l.lang)}`
     : `${body}${ask?` ${slotAsk(l)}${biz?"":" 🙂"}`:""}`;
   return { message, status, appointment };
 }
@@ -572,19 +629,22 @@ function nextWindow(from, seg, p){
 }
 
 // Replying STOP (or similar) unsubscribes, like the link in every email.
-const STOP_WORDS = /\b(stopp?|unsubscribe|opt[ -]?out|abmelden)\b|remove (me|us) from/i;
+const STOP_WORDS = /\b(stopp?|unsubscribe|opt[ -]?out|abmelden)\b|remove (me|us) from|keine (nachrichten|e-?mails) mehr|nehmen sie (mich|uns) (von|aus)/i;
 // Someone who never asked for a quote gets an apology and is removed, like an unsubscribe.
-const WRONG_PERSON = /wrong (number|person)|don'?t know (you|who you are)|never (asked|requested|enquired)|who is this/i;
+const WRONG_PERSON = /wrong (number|person)|don'?t know (you|who you are)|never (asked|requested|enquired)|who is this|falsche (nummer|person)|kenne (sie|ich) nicht|nie (angefragt|angefordert)|wer ist (da|das)/i;
 
 // Rules that run before any reply is written, and always win: STOP and wrong person end the conversation.
 function leadGuard(l, co, text){
   const reason=STOP_WORDS.test(text)?"replied STOP":WRONG_PERSON.test(text)?"wrong person":null;
   if(!reason) return null;
   const biz=l.seg==="Commercial", wrong=reason==="wrong person";
-  const body=wrong?"Sorry for the mix-up, and thanks for letting us know. We've removed this contact from our list and won't message you again."
-    :"Understood. You've been unsubscribed and won't hear from us again about this. All the best!";
-  const hi=wrong?"Hello":biz?`Dear ${dmName(l)}`:`Hi ${first(l.name)}`;
-  return { reason, message:l.channel==="email"?`${hi},\n\n${body}\n\n${signoff(co,biz)}`:body };
+  const body=de(l)
+    ? (wrong?"Entschuldigen Sie die Verwechslung, und danke für den Hinweis. Wir haben diesen Kontakt aus unserer Liste entfernt und schreiben Ihnen nicht mehr."
+            :"Verstanden. Sie wurden abgemeldet und hören zu diesem Thema nicht mehr von uns. Alles Gute!")
+    : (wrong?"Sorry for the mix-up, and thanks for letting us know. We've removed this contact from our list and won't message you again."
+            :"Understood. You've been unsubscribed and won't hear from us again about this. All the best!");
+  const hi=wrong?(de(l)?"Guten Tag":"Hello"):greet(l);
+  return { reason, message:l.channel==="email"?`${hi},\n\n${body}\n\n${signoff(co,biz,l.lang)}`:body };
 }
 const contactKey = x => x.cid || x.id;
 function contactInfo(key){
@@ -751,6 +811,7 @@ function App(){
   const [input,setInput]=useState("");
   const [toast,setToast]=useState(null);
   const [party,setParty]=useState(null);   // { id, kind:"booked"|"paid" } while a celebration plays
+  const [agentLang,setAgentLangState]=useState(()=>loadJSON("sw-agent-lang","en")==="de"?"de":"en");   // language for new conversations
   const [demoMode,setDemoMode]=useState(false);
   const [campaign,setCampaign]=useState(false);
   const [emailCfg,setEmailCfg]=useState({ enabled:false, inbox:null });
@@ -816,6 +877,9 @@ function App(){
   },[demoMode,emailCfg,optOuts]);
 
   const setLang=l=>{ setLangState(l); try{ localStorage.setItem("sw-lang",l); }catch{} };
+  const setAgentLang=l=>{ setAgentLangState(l); saveJSON("sw-agent-lang",l); };
+  // A conversation keeps the language it started in.
+  const stampLang=ids=>setLeads(ls=>ls.map(x=>ids.includes(x.id)?{ ...x, lang:agentLang }:x));
   function openApp(t){ setTab(t||"console"); setPage("app"); if(location.hash!=="#app") location.hash="app"; window.scrollTo(0,0); }
   function goHome(){ setPage("landing"); history.replaceState(null,"",location.pathname); window.scrollTo(0,0); }
 
@@ -858,7 +922,7 @@ function App(){
   // server redirects every email to the test inbox. Sends are spaced out to stay under Resend's rate limit.
   function deliver(l, msg){
     if(l.channel!=="email") return;
-    mailOut({ to:l.email, subject:msg.subject, text:msg.text, fromName:`Lina · ${coOf(l).name}`, contactId:l.id, company:coOf(l).name }, l.name,
+    mailOut({ to:l.email, subject:msg.subject, text:msg.text, fromName:`Lina · ${coOf(l).name}`, contactId:l.id, company:coOf(l).name, lang:l.lang||"en" }, l.name,
       d=>setConvo(l.id,ms=>ms.map(m=>m.id===msg.id?{ ...m, delivery:d }:m)));
   }
   function mailOut(payload, who, mark){
@@ -1016,12 +1080,13 @@ function App(){
     if(started||!lead) return;
     const rule=sendRule(lead,true);
     if(rule&&rule.kind!=="quiet"){ flash(rule.text,C.panel2); log(`🛡 ${rule.text}`,"sys"); return; }
-    const msg={ ...openerMsg(lead), delivery:rule?{ state:"held", note:rule.text }:undefined };
-    setConvo(lead.id,()=>[msg]);
-    if(lead.status==="Cold") setLeadStatus(lead.id,"Contacting");
-    if(rule){ holdMsg("lead",lead,msg,rule.at); log(`⏰ ${lead.name}: ${rule.text}`,"sys"); return; }
-    noteSent(lead.id); deliver(lead, msg);
-    log(sentLog(lead),"out");
+    const l={ ...lead, lang:agentLang }; stampLang([l.id]);
+    const msg={ ...openerMsg(l), delivery:rule?{ state:"held", note:rule.text }:undefined };
+    setConvo(l.id,()=>[msg]);
+    if(l.status==="Cold") setLeadStatus(l.id,"Contacting");
+    if(rule){ holdMsg("lead",l,msg,rule.at); log(`⏰ ${l.name}: ${rule.text}`,"sys"); return; }
+    noteSent(l.id); deliver(l, msg);
+    log(sentLog(l),"out");
   }
 
   function send(text){
@@ -1090,8 +1155,9 @@ function App(){
     setCampaign(true);
     log(`🚀 Campaign launched — ${targets.length} dormant lead${targets.length>1?"s":""} at ${company.name} (${segFilter==="All"?"B2C + B2B":PLAYBOOKS[segFilter].tag})`,"sys");
     let last=0;
-    targets.forEach((l,i)=>{
-      const play=PLAYBOOKS[l.seg], rule=sendRule(l,true);
+    stampLang(targets.map(l=>l.id));
+    targets.forEach((l0,i)=>{
+      const l={ ...l0, lang:agentLang }, play=PLAYBOOKS[l.seg], rule=sendRule(l,true);
       if(rule&&rule.kind!=="quiet"){ later(()=>log(`🛡 Skipped: ${rule.text}`,"sys"),400+i*450); return; }
       if(!rule) noteSent(l.id);
       later(()=>{
@@ -1102,7 +1168,7 @@ function App(){
         else{ deliver(l, msg); log(sentLog(l),"out"); }
       }, 400+i*450);
       if(!rule&&hash(l.id)<0.6){
-        const reply=play.replies[Math.floor(hash(l.id+"r")*play.replies.length)];
+        const pool=play.replies[agentLang], reply=pool[Math.floor(hash(l.id+"r")*pool.length)];
         const at=2600+i*700; last=Math.max(last,at);
         later(()=>{
           setConvo(l.id,m=>[...m,{ id:msgId(), role:"customer", text:reply, subject:m[0]&&m[0].subject?`Re: ${m[0].subject}`:undefined, time:now() }]);
@@ -1191,7 +1257,7 @@ function App(){
 
         {tab==="console" && (
           <Console {...{company,companyId,pickCompany,segFilter,setSegFilter,kpi,lead,leadId,pickLead,visibleLeads,messages,started,typing,pb,sMeta,
-            start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal,setChannel,optOuts,openUnsub,sendNow}} />
+            start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal,setChannel,optOuts,openUnsub,sendNow,agentLang,setAgentLang}} />
         )}
         {tab==="portal" && (
           <Portal key={lead?lead.id:"none"} lead={lead} company={company} companyLeads={companyLeads} pickLead={pickLead}
@@ -1230,7 +1296,7 @@ function App(){
 // ================== B2B: INSTALLER CONSOLE ==================
 function Console(p){
   const { company,companyId,pickCompany,segFilter,setSegFilter,kpi,lead,leadId,pickLead,visibleLeads,messages,started,typing,pb,sMeta,
-    start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal,setChannel,optOuts,openUnsub,sendNow } = p;
+    start,send,input,setInput,scrollRef,briefs,activity,campaign,runCampaign,openPortal,setChannel,optOuts,openUnsub,sendNow,agentLang,setAgentLang } = p;
   const optedOut=lead&&optOuts[lead.id];
   const brief=lead&&briefs[lead.id];
   const maxFunnel=Math.max(1,...kpi.funnel.map(f=>f.n));
@@ -1252,7 +1318,15 @@ function Console(p){
             <span style={{width:7,height:7,borderRadius:999,background:C.green,boxShadow:`0 0 7px ${C.green}`}}/> CRM {company.api}
           </span>
         </div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+          <div role="group" aria-label="Language Lina writes in" title="Language for new conversations; a conversation keeps the language it started in"
+            style={{display:"inline-flex",alignItems:"center",gap:2,background:C.night,border:`1px solid ${C.line}`,borderRadius:999,padding:2,marginRight:4}}>
+            <span style={{fontSize:11,color:C.sub,fontWeight:700,padding:"0 6px 0 8px"}}>Lina writes</span>
+            {[["en","English"],["de","Deutsch"]].map(([k,t])=>(
+              <button key={k} onClick={()=>setAgentLang(k)} aria-pressed={agentLang===k}
+                style={{fontSize:11.5,fontWeight:700,border:"none",borderRadius:999,padding:"4px 10px",cursor:"pointer",background:agentLang===k?C.gold:"transparent",color:agentLang===k?C.night:C.sub}}>{t}</button>
+            ))}
+          </div>
           {[["All","All leads"],["Residential","🏠 Homeowners · B2C"],["Commercial","🏢 Businesses · B2B"]].map(([k,t])=>{
             const on=segFilter===k;
             return <button key={k} onClick={()=>setSegFilter(k)} style={{fontSize:12,fontWeight:700,cursor:"pointer",padding:"6px 12px",borderRadius:999,
@@ -1338,6 +1412,7 @@ function Console(p){
                   <span style={{fontSize:12,fontWeight:700,color:"#BBF7D0",background:"#0F3D22",padding:"5px 11px",borderRadius:999}}>📅 {lead.appointment}</span>
                 )}
                 <span style={{fontSize:11.5,fontWeight:700,color:pb.color}}>{pb.icon} {pb.label}</span>
+                {started&&<span title="This conversation's language" style={{fontSize:11,fontWeight:800,color:C.sub,border:`1px solid ${C.line}`,borderRadius:999,padding:"1px 7px"}}>{lead.lang==="de"?"DE":"EN"}</span>}
                 <span title={lead.consent===false?"No opt-in on record: SolarWake will not send marketing follow-ups":`Opt-in recorded with the ${lead.src} enquiry`}
                   style={{fontSize:11.5,fontWeight:700,color:lead.consent===false?"#FCD34D":"#7BE0A6"}}>{lead.consent===false?"⚠ No marketing consent":"✓ Marketing consent"}</span>
                 <div title={started?"Channel is fixed once the conversation has started":"Choose how the agent reaches this lead"}
@@ -1463,7 +1538,7 @@ function Console(p){
 
             {started&&lead.status!=="Booked"&&(
               <div style={{display:"flex",gap:6,overflowX:"auto",padding:"8px 10px 0"}}>
-                {pb.quick.map(q=>(
+                {pb.quick[lead.lang||"en"].map(q=>(
                   <button key={q} onClick={()=>send(q)} disabled={typing}
                     style={{whiteSpace:"nowrap",fontSize:12,background:"#fff",color:C.waHeader,border:`1px solid ${C.waHeader}44`,padding:"6px 11px",borderRadius:999,cursor:typing?"default":"pointer",opacity:typing?.5:1,fontWeight:600}}>{q}</button>
                 ))}
@@ -1558,7 +1633,7 @@ function EmailPane({ lead, messages, started, typing, pb, start, send, openPorta
               </div>
               {!mine&&<DeliveryNote d={m.delivery} onSendNow={()=>sendNow(m.id)}/>}
               <div style={{fontSize:13.5,lineHeight:1.5,whiteSpace:"pre-wrap",wordBreak:"break-word"}}><ChatText text={m.text} onPortal={openPortal}/></div>
-              {!mine&&<UnsubFooter onUnsub={()=>openUnsub(lead.id)}/>}
+              {!mine&&<UnsubFooter lang={lead.lang} onUnsub={()=>openUnsub(lead.id)}/>}
             </div>
           );
         })}
@@ -1573,7 +1648,7 @@ function EmailPane({ lead, messages, started, typing, pb, start, send, openPorta
         <div style={{borderTop:`1px solid ${line}`,padding:10,background:"#fff"}}>
           <div style={{fontSize:11,color:muted,marginBottom:6}}>Reply as {contact} · suggested:</div>
           <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:8}}>
-            {pb.quick.map(q=>(
+            {pb.quick[lead.lang||"en"].map(q=>(
               <button key={q} onClick={()=>submit(q)} disabled={!canReply}
                 style={{whiteSpace:"nowrap",fontSize:12,background:"#EEF2FF",color:"#1E3A8A",border:"1px solid #C7D2FE",padding:"5px 10px",borderRadius:999,cursor:canReply?"pointer":"default",opacity:canReply?1:.5,fontWeight:600}}>{q}</button>
             ))}
@@ -2693,10 +2768,10 @@ function DeliveryNote({ d, onSendNow }){
 }
 
 // What the customer sees at the bottom of every email.
-function UnsubFooter({ onUnsub }){
+function UnsubFooter({ onUnsub, lang }){
   return (
     <div style={{fontSize:11,color:"#6B7280",marginTop:8,borderTop:"1px dashed #E5E7EB",paddingTop:6}}>
-      Don't want these emails? <button onClick={onUnsub} style={linkBtn}>Unsubscribe</button>
+      {lang==="de"?"Keine E-Mails mehr erhalten?":"Don't want these emails?"} <button onClick={onUnsub} style={linkBtn}>{lang==="de"?"Abmelden":"Unsubscribe"}</button>
     </div>
   );
 }

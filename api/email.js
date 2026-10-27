@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { to, subject, text, fromName, contactId, company } = req.body || {};
+  const { to, subject, text, fromName, contactId, company, lang } = req.body || {};
   if (!DUMMY_RECIPIENT.test(to || "")) {
     res.status(400).json({ error: "Only dummy @example.com recipients are allowed." });
     return;
@@ -65,8 +65,11 @@ export default async function handler(req, res) {
         from: `${clean(fromName, 80) || "SolarWake Demo"} <${fromAddress}>`,
         to: [inbox],
         subject: `[Test → ${to}] ${clean(subject, 200)}`,
-        text: `${text}\n\n—\nYou're receiving this about your solar project with ${clean(company, 80) || "your installer"}. `
-          + `Don't want these emails? Unsubscribe: ${unsubscribeUrl}\n`
+        text: `${text}\n\n—\n` + (lang === "de"
+          ? `Sie erhalten diese E-Mail zu Ihrem Solarprojekt mit ${clean(company, 80) || "Ihrem Installateur"}. `
+            + `Keine E-Mails mehr erhalten? Abmelden: ${unsubscribeUrl}\n`
+          : `You're receiving this about your solar project with ${clean(company, 80) || "your installer"}. `
+            + `Don't want these emails? Unsubscribe: ${unsubscribeUrl}\n`)
           + `SolarWake demo: test email for the fictional contact ${to}. No real customer data is used.`,
         headers: { "List-Unsubscribe": `<${unsubscribeUrl}>` },
       }),
