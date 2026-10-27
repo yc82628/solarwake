@@ -68,13 +68,12 @@
 const { useState, useRef, useEffect, useMemo } = React;
 
 // ================== CONFIG ==================
-// Messages come from built-in templates and keyword rules, so the demo needs no paid AI.
-// To let Claude write the messages instead, set USE_CLAUDE to true and add ANTHROPIC_API_KEY
-// (with credits) in Vercel. Everything falls back to the templates if a Claude call fails.
-const USE_CLAUDE = false;
-// Model string for the live Anthropic API. Verify/swap at https://docs.claude.com if needed.
-// Good options: "claude-sonnet-5" (best conversation) · "claude-haiku-5-5" (cheaper/faster).
-const MODEL = "claude-sonnet-5";
+// Messages come from built-in templates and keyword rules, so the app runs for free with no paid AI.
+// Add OPENAI_API_KEY in Vercel (or .env.local) and OpenAI writes the replies instead: the page asks
+// GET /api/chat on load, and the server picks the model. Set ALLOW_AI to false to force the templates.
+// Every AI reply falls back to the templates if the call fails, returns bad JSON or quotes a € figure
+// that isn't in the customer's own data.
+const ALLOW_AI = true;
 
 const C = {
   night:"#0B1220", panel:"#131C2E", panel2:"#1B2740", line:"#26324B",
@@ -175,8 +174,16 @@ function leadFacts(lead, co){
 - Quote: ${eur(lead.quote)} for a ${lead.kw} kW system in ${lead.city}, sent ${lead.days} days ago. Lead source: ${lead.src}. Why it stalled: ${lead.lost}.
 - Estimated savings: ${eur(m.savings)} per year, simple payback about ${fmtYears(m.payback)}, 20-year net gain about ${eur(m.net20)}, ${m.co2.toFixed(1)} t CO2 avoided per year.
 - The quoted price is held for ${ECON.priceLockDays} more days.
-- Personal page with live numbers, financing and self-booking: ${portalUrl(lead,co)}`;
+- Personal page with live numbers, financing and self-booking: ${portalUrl(lead,co)}
+Write € amounts exactly as given above (for example ${eur(lead.quote)}).`;
 }
+
+// € amounts in a text, normalised to eur() style so "€1,246", "1.246 €" and "€1.246" all compare equal.
+const figs = t => (t.match(/€\s?\d[\d.,]*|\d[\d.,]*\s?€/g)||[]).map(s=>"€"+s.replace(/[€\s]/g,"").replace(/[.,]$/,"").replace(/,(?=\d{3}(\D|$))/g,"."));
+// The only € figures Lina may quote; anything else in an AI reply sends it back to the templates.
+const leadFigures = (l, co) => { const m=solarModel(l,co,{ bill:l.bill }); return [l.quote,m.savings,m.savings/12,m.net20,l.bill].map(eur); };
+const invFigures = inv => [inv.amount,inv.amount/2,inv.amount/3].map(eur);
+const strayFigures = (text, allowed) => [...new Set(figs(text).filter(f=>!allowed.includes(f)))];
 
 const CHANNELS = {
   whatsapp:{ label:"WhatsApp", icon:"💬" },
@@ -261,7 +268,7 @@ ${JSON_RULES}`,
 
 // ================== REPLY TEMPLATES (no paid AI needed) ==================
 // The agent reads the lead's reply with keyword rules, answers that objection from the playbook,
-// and moves toward a booking from the second reply on. With USE_CLAUDE on, Claude writes replies instead.
+// and moves toward a booking from the second reply on. With an OpenAI key set, the AI writes replies instead.
 // Each rule matches English and German replies.
 function classifyLead(text){
   const t=text.toLowerCase();
@@ -364,12 +371,12 @@ function parseAgent(raw){
   }catch{ return { message:raw||"Sorry, could you repeat that?", status:"warm", appointment:null }; }
 }
 
-async function callClaude(system, messages, max_tokens=2000){
+async function callAI(system, messages, max_tokens=2000){
   const res=await fetch("/api/chat",{ method:"POST", headers:{"content-type":"application/json"},
-    body:JSON.stringify({ model:MODEL, max_tokens, system, messages, output_config:{ effort:"low" } }) });
-  const data=await res.json();
-  if(data.error) throw new Error(data.error.message||data.error);
-  return (data.content||[]).filter(i=>i.type==="text").map(i=>i.text).join("\n");
+    body:JSON.stringify({ system, messages, max_tokens }) });
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok||!data.text) throw new Error(data.error||`HTTP ${res.status}`);
+  return data.text;
 }
 // The Messages API needs the first turn to be "user", so the agent's opener is preceded by a short note.
 const toApi = history => [{ role:"user", content:"(Lead record opened. You sent the first message below.)" },
@@ -815,6 +822,7 @@ function App(){
   const [demoMode,setDemoMode]=useState(false);
   const [campaign,setCampaign]=useState(false);
   const [emailCfg,setEmailCfg]=useState({ enabled:false, inbox:null });
+  const [aiCfg,setAiCfg]=useState({ enabled:false, model:null });
   const [policy,setPolicy]=useState(()=>({ ...POLICY_DEFAULT, ...loadJSON("sw-policy",{}) }));
   const [optOuts,setOptOuts]=useState(()=>loadJSON("sw-optouts",{}));   // contact key -> date unsubscribed
   const [held,setHeld]=useState([]);                                     // messages waiting for quiet hours to end
@@ -835,6 +843,7 @@ function App(){
   const started=messages.length>0;
   const typing=lead&&typingId===lead.id;
   const pb=lead?PLAYBOOKS[lead.seg]:PLAYBOOKS.Residential;
+  const aiOn=ALLOW_AI&&aiCfg.enabled&&!demoMode;   // rehearsal always uses the templates
 
   const kpi=useMemo(()=>{
     const v=visibleLeads, booked=v.filter(l=>l.status==="Booked");
@@ -859,6 +868,7 @@ function App(){
   useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[messages.length,typing]);
   useEffect(()=>()=>timers.current.forEach(clearTimeout),[]);
   useEffect(()=>{ fetch("/api/email").then(r=>r.json()).then(d=>setEmailCfg({ enabled:!!d.enabled, inbox:d.inbox||null })).catch(()=>{}); },[]);
+  useEffect(()=>{ fetch("/api/chat").then(r=>r.json()).then(d=>setAiCfg({ enabled:!!d.enabled, model:d.model||null })).catch(()=>{}); },[]);
   useEffect(()=>{
     const onHash=()=>setPage(location.hash.startsWith("#app")?"app":"landing");
     window.addEventListener("hashchange",onHash); return ()=>window.removeEventListener("hashchange",onHash);
@@ -994,10 +1004,13 @@ function App(){
     busy.current.add(inv.id); setInvTyping(inv.id);
     const co=coOf(inv);
     let text;
-    if(!USE_CLAUDE||demoMode){ await sleep(700); text=reminderScript(inv,co,step); }
+    if(!aiOn){ await sleep(700); text=reminderScript(inv,co,step); }
     else{
-      try{ text=parseBilling(await callClaude(billingSystem(inv,co,step),[{ role:"user", content:`(Write the "${step.name}" email for this invoice now.)` }])).message; }
-      catch{ text=reminderScript(inv,co,step); }
+      try{
+        text=parseBilling(await callAI(billingSystem(inv,co,step),[{ role:"user", content:`(Write the "${step.name}" email for this invoice now.)` }])).message;
+        const stray=strayFigures(text,invFigures(inv));
+        if(stray.length){ log(`🛡 AI draft for ${inv.id} quoted ${stray.join(", ")}: used the template instead`,"sys"); throw new Error("stray figures"); }
+      }catch{ text=reminderScript(inv,co,step); }
     }
     const msg={ id:msgId(), role:"agent", text, subject:reminderSubject(inv,step), time:now(), step:step.name,
       delivery:rule?{ state:"held", note:rule.text }:undefined };
@@ -1035,12 +1048,14 @@ function App(){
     if(optOuts[inv.cid]){ log(`🚫 ${inv.name} is unsubscribed: no reply sent`,"sys"); return; }
     busy.current.add(inv.id); setInvTyping(inv.id);
     let intent=classifyReply(history[history.length-1].text), text, promise=null;
-    if(!USE_CLAUDE||demoMode){ await sleep(800); text=replyScript(inv,co,intent); }
+    if(!aiOn){ await sleep(800); text=replyScript(inv,co,intent); }
     else{
       try{
         const msgs=[{ role:"user", content:"(Billing thread opened. You sent the first email below.)" },
           ...history.map(m=>({ role:m.role==="agent"?"assistant":"user", content:m.text }))];
-        const r=parseBilling(await callClaude(billingSystem(inv,co,ladderStep(inv,ladder)), msgs));
+        const r=parseBilling(await callAI(billingSystem(inv,co,ladderStep(inv,ladder)), msgs));
+        const stray=strayFigures(r.message,invFigures(inv));
+        if(stray.length){ log(`🛡 AI reply for ${inv.id} quoted ${stray.join(", ")}: used the template instead`,"sys"); throw new Error("stray figures"); }
         text=r.message; promise=r.promise_date||null;
         if(Object.prototype.hasOwnProperty.call(INTENT_FLAG,r.intent)) intent=r.intent;
       }catch{ text=replyScript(inv,co,intent); }
@@ -1109,8 +1124,10 @@ function App(){
     busy.current.add(l.id);
     setTypingId(l.id);
     let reply=null;
-    if(USE_CLAUDE&&!demoMode){
-      try{ reply=parseAgent(await callClaude(play.system(l,co,l.channel), toApi(history))); }catch{ reply=null; }
+    if(aiOn){
+      try{ reply=parseAgent(await callAI(play.system(l,co,l.channel), toApi(history))); }catch{ reply=null; }
+      const stray=reply?strayFigures(reply.message,leadFigures(l,co)):[];
+      if(stray.length){ log(`🛡 AI reply to ${l.name} quoted ${stray.join(", ")}, which isn't in the quote data: used the template instead`,"sys"); reply=null; }
     }
     if(!reply){ await sleep(900); reply=leadReply(l,co,history); }
     const subject=history[0].subject?`Re: ${history[0].subject}`:undefined;
@@ -1137,9 +1154,9 @@ function App(){
     setBriefs(b=>({ ...b, [l.id]:"loading" }));
     let brief;
     try{
-      if(!USE_CLAUDE||demoMode||!history.length) throw new Error("templates");
+      if(!aiOn||!history.length) throw new Error("templates");
       const transcript=history.map(m=>`${m.role==="agent"?"Agent":"Lead"}: ${m.text}`).join("\n");
-      const raw=await callClaude(BRIEF_SYSTEM,[{ role:"user", content:`Lead: ${l.name} (${l.seg}, ${l.kw} kW, quote ${eur(l.quote)}, stalled on "${l.lost}"${l.dm?`, decision-maker ${l.dm}`:""}). Booked ${via}.\n\nTranscript:\n${transcript}` }]);
+      const raw=await callAI(BRIEF_SYSTEM,[{ role:"user", content:`Lead: ${l.name} (${l.seg}, ${l.kw} kW, quote ${eur(l.quote)}, stalled on "${l.lost}"${l.dm?`, decision-maker ${l.dm}`:""}). Booked ${via}.\n\nTranscript:\n${transcript}` }]);
       const t=raw.slice(raw.indexOf("{"), raw.lastIndexOf("}")+1);
       brief={ ...JSON.parse(t), ai:true };
     }catch{ brief=heuristicBrief(l, co, history, via); }
@@ -1219,14 +1236,14 @@ function App(){
           </button>
           <WokenCounter booked={woken.booked} collected={woken.collected}/>
           <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-            <button onClick={()=>setDemoMode(d=>!d)} title="Rehearsal mode never sends real emails. Use it to practise the demo."
+            <button onClick={()=>setDemoMode(d=>!d)} title="Rehearsal mode never sends real emails and always uses the templates. Use it to practise the demo."
               style={{display:"inline-flex",alignItems:"center",gap:7,fontSize:12,fontWeight:700,cursor:"pointer",
                 color:demoMode?C.night:C.sub,background:demoMode?C.gold:C.panel,border:`1px solid ${demoMode?C.gold:C.line}`,padding:"7px 12px",borderRadius:999}}>
               <span style={{width:7,height:7,borderRadius:999,background:demoMode?C.night:C.green}}/> {demoMode?"Rehearsal: nothing sent":"Live mode"}
             </button>
-            <div title={USE_CLAUDE?"Messages are written by Claude, with templates as a fallback":"Messages come from built-in templates; replies are understood with keyword rules. No paid AI needed."}
+            <div title={aiOn?`Replies are written by OpenAI (${aiCfg.model}) from each customer's own facts; the templates take over if a call fails or quotes a figure that isn't in the data`:"Messages come from built-in templates; replies are understood with keyword rules. No paid AI needed."}
               style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:C.sub,background:C.panel,border:`1px solid ${C.line}`,padding:"7px 12px",borderRadius:999}}>
-              <span style={{width:7,height:7,borderRadius:999,background:C.gold,boxShadow:`0 0 7px ${C.gold}`}}/> {USE_CLAUDE?"Powered by Claude · Anthropic API":"Smart templates · rule-based replies"}
+              <span style={{width:7,height:7,borderRadius:999,background:C.gold,boxShadow:`0 0 7px ${C.gold}`}}/> {aiOn?`AI replies · OpenAI ${aiCfg.model}`:"Smart templates · rule-based replies"}
             </div>
             <div title={emailCfg.enabled?"Agent emails are really sent, redirected to this test inbox (leads are fictional)":"Set RESEND_API_KEY to send real emails"}
               style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:emailCfg.enabled?"#BBF7D0":C.sub,background:C.panel,border:`1px solid ${emailCfg.enabled?C.green:C.line}`,padding:"7px 12px",borderRadius:999}}>
@@ -1278,7 +1295,7 @@ function App(){
         {tab==="arena" && <ArenaView/>}
 
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:16,flexWrap:"wrap",gap:10}}>
-          <div style={{fontSize:12,color:C.sub}}>⚡ Automated follow-ups over email or WhatsApp, with rule-based reply handling. Same lead volume → more booked appointments.</div>
+          <div style={{fontSize:12,color:C.sub}}>⚡ Automated follow-ups over email or WhatsApp, with {aiOn?"AI-written replies behind rule-based safety checks":"rule-based reply handling"}. Same lead volume → more booked appointments.</div>
           <button onClick={reset} style={{display:"inline-flex",alignItems:"center",gap:7,background:C.panel,color:C.sub,border:`1px solid ${C.line}`,padding:"8px 14px",borderRadius:999,fontSize:13,cursor:"pointer",fontWeight:600}}>↺ Reset demo</button>
         </div>
       </div>
@@ -1435,7 +1452,7 @@ function Console(p){
             <div className="sw-in" style={{background:"#0E2A1C",border:`1px solid ${C.green}66`,borderRadius:14,padding:14,marginBottom:14}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
                 <div style={{fontWeight:800,fontSize:13.5}}>📋 Advisor handoff brief</div>
-                <span style={{fontSize:10.5,color:"#9FD0FF",fontWeight:700}}>{brief==="loading"?"Writing…":`${brief.ai?"Written by Claude":"Auto-generated"} · synced to CRM`}</span>
+                <span style={{fontSize:10.5,color:"#9FD0FF",fontWeight:700}}>{brief==="loading"?"Writing…":`${brief.ai?"Written by AI":"Auto-generated"} · synced to CRM`}</span>
               </div>
               {brief==="loading" ? <span className="sw-dots"><i/><i/><i/></span> : (
                 <div style={{fontSize:12.5,lineHeight:1.5}}>
@@ -2567,13 +2584,12 @@ const PERSONAS = [
 ];
 const PUSHY = /\b(last chance|act now|hurry|limited time|don'?t miss out|urgent)\b|!!/i;
 const THREATS = /lawyer|court|legal action|collection agenc|inkasso|bailiff|penalt|late fee/i;
-const figs = t => (t.match(/€\d[\d.]*/g)||[]).map(s=>s.replace(/\.$/,""));
 
 function arenaRun(p){
   const turns=[], out={ booked:null, optOut:null, intent:null, flag:null };
   let who, allowed, checks;
   if(p.kind==="lead"){
-    const l={ ...CONTACTS.find(c=>c.id===p.lead), channel:p.channel }, co=coOf(l), m=solarModel(l,co,{ bill:l.bill });
+    const l={ ...CONTACTS.find(c=>c.id===p.lead), channel:p.channel }, co=coOf(l);
     who=`${l.dm?dmName(l):l.name} · lead of ${co.name}`;
     turns.push({ role:"agent", text:PLAYBOOKS[l.seg].opener[l.channel](l,co).text });
     for(const line of p.lines){
@@ -2584,7 +2600,7 @@ function arenaRun(p){
       turns.push({ role:"agent", text:r.message });
       if(r.status==="booked"&&r.appointment){ out.booked=r.appointment; break; }
     }
-    allowed=[l.quote,m.savings,m.savings/12,m.net20,l.bill].map(eur);
+    allowed=leadFigures(l,co);
   } else {
     const inv=arenaInv(...p.inv), co=coOf(inv), step=ladderStep(inv,LADDER)||LADDER[0];
     who=`${inv.contact} · ${inv.id}`;
@@ -2594,7 +2610,7 @@ function arenaRun(p){
       out.intent=classifyReply(line); out.flag=INTENT_FLAG[out.intent];
       turns.push({ role:"agent", text:replyScript(inv,co,out.intent) });
     }
-    allowed=[inv.amount,inv.amount/2,inv.amount/3].map(eur);
+    allowed=invFigures(inv);
   }
   const lina=turns.filter(t=>t.role==="agent").map(t=>t.text), last=lina[lina.length-1];
   const stray=[...new Set(lina.flatMap(figs).filter(f=>!allowed.includes(f)))];

@@ -1,5 +1,5 @@
 // Local test server: serves index.html and runs api/*.js the way Vercel would.
-// Put ANTHROPIC_API_KEY=sk-ant-... (and optionally RESEND_API_KEY / EMAIL_TEST_INBOX) in .env.local
+// Optionally put OPENAI_API_KEY=sk-... (AI replies) and RESEND_API_KEY / EMAIL_TEST_INBOX (real test emails) in .env.local
 // (git-ignored), then: npm run local
 import http from "node:http";
 import { readFile } from "node:fs/promises";
@@ -28,6 +28,6 @@ http.createServer(async (req, res) => {
   res.status(404).end("Not found");
 }).listen(PORT, "127.0.0.1", () => {
   console.log(`SolarWake running at http://localhost:${PORT}`);
-  console.log(process.env.ANTHROPIC_API_KEY ? "Live AI: API key loaded" : "No ANTHROPIC_API_KEY: live calls fall back to the script");
+  console.log(process.env.OPENAI_API_KEY ? `AI replies: on (${process.env.OPENAI_MODEL || "gpt-6-luna"})` : "No OPENAI_API_KEY: replies come from the free templates");
   console.log(process.env.RESEND_API_KEY ? `Live email: on -> ${process.env.EMAIL_TEST_INBOX || "delivered@resend.dev"}` : "No RESEND_API_KEY: emails stay in the app");
 });

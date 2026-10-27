@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "SolarWake — AI lead reactivation agent, powered by Anthropic's Claude API.",
+  "description": "SolarWake — revenue recovery for solar installers: quote follow-ups, payment reminders and a ledger. Free templates by default, optional OpenAI replies.",
   "scripts": {
     "local": "node --env-file-if-exists=.env.local dev-server.mjs"
   }
