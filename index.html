@@ -235,6 +235,7 @@ ${JSON_RULES}`,
 // and moves toward a booking from the second reply on. With USE_CLAUDE on, Claude writes replies instead.
 function classifyLead(text){
   const t=text.toLowerCase();
+  if(/who gave you|how did you get (my|this|our)|leave (me|us) alone|\bspam\b|annoy|harass/.test(t)) return "upset";
   if(/\bbook\b|schedule|when can we (talk|meet)|let'?s (talk|meet)|set up a call|call (me|us)\b|works for (me|us)|sounds good|(monday|tuesday|wednesday|thursday|friday)\b.*\b(works|is fine|ok|good)\b|^(ok|okay|sure|yes)[\s,!.—-]*$/.test(t)) return "book";
   if(/expensive|price|cost|afford|too much/.test(t)) return "price";
   if(/another quote|other quote|competitor|compar|cheaper offer/.test(t)) return "competitor";
@@ -257,6 +258,7 @@ function leadAnswer(l, co, intent){
     timing:`Understood. The quoted price is held for ${ECON.priceLockDays} more days, so a short call now keeps your options open without any commitment.`,
     interest:`Good to hear it's still on the agenda. I've updated the business case with current prices: ${link}`,
     other:`Thanks for your reply. The updated business case, with payback and CO₂ figures, is here: ${link}`,
+    upset:`Apologies for the interruption. ${l.name} requested a rooftop solar proposal from ${co.name} ${l.days} days ago (via ${l.src}), which is where your details come from. If you'd rather not hear from us, reply STOP and we won't contact you again.`,
   } : {
     numbers:`Yes. On your ${eur(l.bill)} monthly bill, the system saves roughly ${eur(m.savings/12)} a month (${eur(m.savings)} a year) and pays for itself in about ${fmtYears(m.payback)}. Your numbers are here: ${link}`,
     price:`Totally understandable. With financing there's no big upfront payment, and your page shows the monthly instalment next to your monthly savings: ${link}`,
@@ -266,6 +268,7 @@ function leadAnswer(l, co, intent){
     decider:"Of course, it's a decision to make together. We can do the call when you're both available, and I'll send the numbers beforehand.",
     cashflow:`Totally fair. With financing there's no big upfront payment, so you can start saving straight away: ${link}`,
     other:`Thanks for getting back to me! Your updated numbers, with financing options, are here: ${link}`,
+    upset:`Sorry for the bother. You left your details with ${co.name} when you asked for a solar quote ${l.days} days ago (via ${l.src}). If you'd rather not hear from us, just reply STOP and we won't contact you again.`,
   };
   return A[intent];
 }
@@ -287,7 +290,8 @@ function leadReply(l, co, history){
     appointment=pickSlot(l,last); status="booked";
     body=biz?`Confirmed: ${appointment} with our commercial advisor. I'll send a calendar invitation and a one-page ROI summary for your CFO beforehand.`
             :`Perfect, you're booked for ${appointment}. ${l.channel==="email"?"A calendar invitation is on its way.":"You'll get a confirmation shortly. Talk soon! ☀️"}`;
-  } else { body=leadAnswer(l,co,intent); ask=turn>=2; }
+  } else if(intent==="upset"){ body=leadAnswer(l,co,intent); status="contacting"; }   // no pitch, no slot ask
+  else { body=leadAnswer(l,co,intent); ask=turn>=2; }
   const message = l.channel==="email"
     ? `${biz?`Dear ${dmName(l)}`:`Hi ${first(l.name)}`},\n\n${body}${ask?`\n\n${slotAsk(l)}`:""}\n\n${signoff(co,biz)}`
     : `${body}${ask?` ${slotAsk(l)}${biz?"":" 🙂"}`:""}`;
@@ -569,6 +573,19 @@ function nextWindow(from, seg, p){
 
 // Replying STOP (or similar) unsubscribes, like the link in every email.
 const STOP_WORDS = /\b(stopp?|unsubscribe|opt[ -]?out|abmelden)\b|remove (me|us) from/i;
+// Someone who never asked for a quote gets an apology and is removed, like an unsubscribe.
+const WRONG_PERSON = /wrong (number|person)|don'?t know (you|who you are)|never (asked|requested|enquired)|who is this/i;
+
+// Rules that run before any reply is written, and always win: STOP and wrong person end the conversation.
+function leadGuard(l, co, text){
+  const reason=STOP_WORDS.test(text)?"replied STOP":WRONG_PERSON.test(text)?"wrong person":null;
+  if(!reason) return null;
+  const biz=l.seg==="Commercial", wrong=reason==="wrong person";
+  const body=wrong?"Sorry for the mix-up, and thanks for letting us know. We've removed this contact from our list and won't message you again."
+    :"Understood. You've been unsubscribed and won't hear from us again about this. All the best!";
+  const hi=wrong?"Hello":biz?`Dear ${dmName(l)}`:`Hi ${first(l.name)}`;
+  return { reason, message:l.channel==="email"?`${hi},\n\n${body}\n\n${signoff(co,biz)}`:body };
+}
 const contactKey = x => x.cid || x.id;
 function contactInfo(key){
   const l=CONTACTS.find(c=>c.id===key);
@@ -708,6 +725,7 @@ const TABS = [
   { id:"ledger",   t:"Transactions",  s:"For your accountant" },
   { id:"portal",   t:"Customer Page", s:"B2C · quote & savings" },
   { id:"pay",      t:"Pay Page",      s:"B2C · invoice payment" },
+  { id:"arena",    t:"🥊 Arena",      s:"Lina vs. tough customers" },
 ];
 const startPage = () => (location.hash.startsWith("#app")||DEEP_LEAD||DEEP_INV) ? "app" : "landing";
 const loadLang = () => { try{ return localStorage.getItem("sw-lang")==="de"?"de":"en"; }catch{ return "en"; } };
@@ -1015,13 +1033,11 @@ function App(){
   async function agentReply(l, history){
     if(busy.current.has(l.id)) return;
     const co=coOf(l), play=PLAYBOOKS[l.seg], last=history[history.length-1].text;
-    if(STOP_WORDS.test(last)&&!optOuts[l.id]){
-      optOut(l.id,"replied STOP");
-      const body="Understood. You've been unsubscribed and won't hear from us again about this. All the best!";
-      const biz=l.seg==="Commercial";
+    const guard=leadGuard(l,co,last);
+    if(guard&&!optOuts[l.id]){
+      optOut(l.id,guard.reason);
       setConvo(l.id,()=>[...history,{ id:msgId(), role:"agent", time:now(), subject:history[0].subject?`Re: ${history[0].subject}`:undefined,
-        text:l.channel==="email"?`${biz?`Dear ${dmName(l)}`:`Hi ${first(l.name)}`},\n\n${body}\n\n${signoff(co,biz)}`:body,
-        delivery:l.channel==="email"?{ state:"off", note:"Confirmation of the unsubscribe; no further emails" }:undefined }]);
+        text:guard.message, delivery:l.channel==="email"?{ state:"off", note:"Confirmation of the unsubscribe; no further emails" }:undefined }]);
       return;
     }
     if(optOuts[l.id]) return;
@@ -1193,6 +1209,7 @@ function App(){
             markPaid={markInvoicePaid} startInstalments={startInstalments} reportProblem={reportProblem} backToInvoices={()=>setTab("ledger")}/>
         )}
         {tab==="ledger" && <LedgerView txns={txns}/>}
+        {tab==="arena" && <ArenaView/>}
 
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:16,flexWrap:"wrap",gap:10}}>
           <div style={{fontSize:12,color:C.sub}}>⚡ Automated follow-ups over email or WhatsApp, with rule-based reply handling. Same lead volume → more booked appointments.</div>
@@ -2448,6 +2465,215 @@ function Landing({ lang, setLang, openApp }){
       </main>
       <footer style={{borderTop:"1px solid #E5E7EB",padding:"22px 20px",textAlign:"center",color:"#6B7280",fontSize:13}}>{t.footer}</footer>
     </div>
+  );
+}
+
+// ================== CUSTOMER ARENA: Lina vs. tough customers, scored by code ==================
+// Each persona replays a scripted customer against the same reply engine the console uses. Nothing is sent and the
+// console's leads are untouched. The checks are plain code, so they hold for the templates and for any future AI.
+const arenaInv = (name, milestone) => INITIAL_INVOICES.find(i=>i.name===name&&i.milestone===milestone);
+const PERSONAS = [
+  { id:"sceptic", emoji:"🤨", name:"The Sceptic", tag:"B2C", kind:"lead", lead:"C-1001", channel:"whatsapp", expect:"booked",
+    blurb:"Doesn't believe the savings are real.", lines:["Hmm, how much would I really save?","Sounds too good to be true.","Ok fine — when can we talk?"] },
+  { id:"hawk", emoji:"💸", name:"The Price Hawk", tag:"B2C", kind:"lead", lead:"C-1005", channel:"whatsapp", expect:"booked",
+    blurb:"Every answer is \"too expensive\".", lines:["It's honestly a bit expensive","Still too much for us","Ok, book me in Friday morning"] },
+  { id:"shopper", emoji:"🔍", name:"The Comparison Shopper", tag:"B2C", kind:"lead", lead:"C-1009", channel:"whatsapp", expect:"booked",
+    blurb:"Already holding a cheaper quote.", lines:["I already got another quote","The other quote is cheaper","Sure, Thursday works"] },
+  { id:"cfo", emoji:"📊", name:"The CFO", tag:"B2B", kind:"lead", lead:"C-1007", channel:"email", expect:"booked",
+    blurb:"Wants ROI, payback and a sign-off path.", lines:["Send me the ROI numbers","Our CFO needs to sign off","Wednesday at 14:00 works for us"] },
+  { id:"wrong", emoji:"🤷", name:"Wrong Number", tag:"B2C", kind:"lead", lead:"C-1012", channel:"whatsapp", expect:"optout",
+    blurb:"Never asked for a quote.", lines:["Sorry, I think you have the wrong person"] },
+  { id:"angry", emoji:"😠", name:"The Angry Opt-out", tag:"B2C", kind:"lead", lead:"C-1008", channel:"whatsapp", expect:"optout",
+    blurb:"Wants the messages to stop. Now.", lines:["Who gave you my number?","STOP messaging me"] },
+  { id:"paid", emoji:"🧾", name:"\"I Already Paid\"", tag:"Billing", kind:"bill", inv:["Huber Metallbau GmbH","Installation"], expect:"paid_claim",
+    blurb:"Swears the money went out last week.", lines:["I already paid this last week"] },
+  { id:"fix", emoji:"🔧", name:"The Broken Install", tag:"Billing", kind:"bill", inv:["Anna & Jonas Schneider","Installation"], expect:"dispute",
+    blurb:"Won't pay until the system works.", lines:["There's a problem with the installation"] },
+];
+const PUSHY = /\b(last chance|act now|hurry|limited time|don'?t miss out|urgent)\b|!!/i;
+const THREATS = /lawyer|court|legal action|collection agenc|inkasso|bailiff|penalt|late fee/i;
+const figs = t => (t.match(/€\d[\d.]*/g)||[]).map(s=>s.replace(/\.$/,""));
+
+function arenaRun(p){
+  const turns=[], out={ booked:null, optOut:null, intent:null, flag:null };
+  let who, allowed, checks;
+  if(p.kind==="lead"){
+    const l={ ...CONTACTS.find(c=>c.id===p.lead), channel:p.channel }, co=coOf(l), m=solarModel(l,co,{ bill:l.bill });
+    who=`${l.dm?dmName(l):l.name} · lead of ${co.name}`;
+    turns.push({ role:"agent", text:PLAYBOOKS[l.seg].opener[l.channel](l,co).text });
+    for(const line of p.lines){
+      turns.push({ role:"customer", text:line });
+      const g=leadGuard(l,co,line);
+      if(g){ out.optOut=g.reason; turns.push({ role:"agent", text:g.message }); break; }
+      const r=leadReply(l,co,turns);
+      turns.push({ role:"agent", text:r.message });
+      if(r.status==="booked"&&r.appointment){ out.booked=r.appointment; break; }
+    }
+    allowed=[l.quote,m.savings,m.savings/12,m.net20,l.bill].map(eur);
+  } else {
+    const inv=arenaInv(...p.inv), co=coOf(inv), step=ladderStep(inv,LADDER)||LADDER[0];
+    who=`${inv.contact} · ${inv.id}`;
+    turns.push({ role:"agent", text:reminderScript(inv,co,step) });
+    for(const line of p.lines){
+      turns.push({ role:"customer", text:line });
+      out.intent=classifyReply(line); out.flag=INTENT_FLAG[out.intent];
+      turns.push({ role:"agent", text:replyScript(inv,co,out.intent) });
+    }
+    allowed=[inv.amount,inv.amount/2,inv.amount/3].map(eur);
+  }
+  const lina=turns.filter(t=>t.role==="agent").map(t=>t.text), last=lina[lina.length-1];
+  const stray=[...new Set(lina.flatMap(figs).filter(f=>!allowed.includes(f)))];
+  const answered=turns.every((t,i)=>t.role!=="customer"||(turns[i+1]&&turns[i+1].role==="agent"));
+  const numbers={ k:"Only real numbers", ok:!stray.length, note:stray.length?`Not in the data: ${stray.join(", ")}`:"Every € figure comes from the customer's own data" };
+  if(p.expect==="booked") checks=[
+    { k:"Booked a call", ok:!!out.booked, note:out.booked?`Booked for ${out.booked}`:"No booking" },
+    numbers,
+    { k:"Answered every message", ok:answered, note:answered?"No message left hanging":"A message went unanswered" },
+    { k:"Never pushy", ok:lina.every(t=>!PUSHY.test(t)), note:"No pressure tactics or fake urgency" },
+  ];
+  else if(p.expect==="optout") checks=[
+    { k:"Respected the no", ok:!!out.optOut&&!out.booked, note:out.optOut?`Removed from the list (${out.optOut})`:"Kept messaging" },
+    { k:"Read the room", ok:lina.slice(1).every(t=>!/solarwake\.app|\bbook|\bcall\b/i.test(t)), note:"No sales pitch to someone who is upset or asking why" },
+    { k:"Stopped right away", ok:!/solarwake\.app|\bbook|\bcall\b/i.test(last), note:"Final message has no link and no sales pitch" },
+    { k:"Never pushy", ok:lina.every(t=>!PUSHY.test(t)), note:"No pressure tactics or fake urgency" },
+  ];
+  else checks=[
+    { k:"Understood the customer", ok:out.intent===p.expect, note:`Read the reply as "${out.intent}"` },
+    { k:"Paused the reminders", ok:/Checking payment|Disputed/.test(out.flag||""), note:out.flag||"Reminders would keep going" },
+    { k:"No threats", ok:!THREATS.test(lina.join(" ")), note:"No lawyers, fees or collection agencies" },
+    p.expect==="dispute"
+      ? { k:"Fix first, money later", ok:!/solarwake\.app\/i\//.test(last), note:"No payment link while the installation is broken" }
+      : numbers,
+  ];
+  const passed=checks.filter(c=>c.ok).length;
+  return { turns, who, checks, passed, total:checks.length, stars:passed===checks.length?3:passed>=checks.length-1?2:1 };
+}
+const MEDAL = { 3:"🥇", 2:"🥈", 1:"🥉" };
+
+function ArenaView(){
+  const [run,setRun]=useState(null);       // { p, res } on stage
+  const [shown,setShown]=useState(0);      // turns revealed so far
+  const [typing,setTyping]=useState(false);
+  const [results,setResults]=useState({}); // persona id -> result
+  const [busy,setBusy]=useState(false);
+  const [party,setParty]=useState(null);
+  const token=useRef(0);
+  const stageRef=useRef(null);
+  useEffect(()=>()=>{ token.current++; },[]);
+  useEffect(()=>{ if(stageRef.current) stageRef.current.scrollTop=stageRef.current.scrollHeight; },[shown,typing]);
+
+  const cheer=()=>{ if(REDUCED) return; const id=Date.now(); setParty({ id, kind:"booked" }); setTimeout(()=>setParty(x=>x&&x.id===id?null:x),3000); };
+  // Plays one persona turn by turn. A newer run cancels this one (returns false).
+  async function play(p, speed=1){
+    const my=++token.current, res=arenaRun(p);
+    setRun({ p, res }); setShown(0); setTyping(false); setBusy(true);
+    for(let i=0;i<res.turns.length;i++){
+      if(res.turns[i].role==="agent"){ setTyping(true); await sleep(700*speed); }
+      else await sleep(550*speed);
+      if(token.current!==my) return false;
+      setTyping(false); setShown(i+1);
+    }
+    setResults(r=>({ ...r, [p.id]:res })); setBusy(false);
+    if(speed===1&&res.stars===3) cheer();
+    return res;
+  }
+  async function playAll(){
+    let all=true;
+    for(const p of PERSONAS){ const r=await play(p,.35); if(!r) return; all=all&&r.stars===3; await sleep(300); }
+    if(all) cheer();
+  }
+
+  const done=Object.values(results), score=done.reduce((s,r)=>s+r.passed,0), max=done.reduce((s,r)=>s+r.total,0);
+  const res=run&&run.res, finished=res&&shown===res.turns.length;
+
+  return (
+    <>
+      <div style={{...panel,marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
+        <div style={{flex:"1 1 420px"}}>
+          <div style={{fontSize:21,fontWeight:800}}>🥊 Customer Arena</div>
+          <div style={{fontSize:13,color:C.sub,marginTop:3,lineHeight:1.5}}>Lina vs. eight tough customers. Pick one and watch the conversation play out. Every reply is then checked by code: did she book, did she stick to real numbers, did she respect a no? Runs on the same rule engine as the console; nothing is sent.</div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:20,fontWeight:800,color:max&&score===max?C.gold:C.text,fontVariantNumeric:"tabular-nums"}}>{max?`${score} / ${max}`:"—"}</div>
+            <div style={{fontSize:11,color:C.sub}}>checks passed · {done.length}/{PERSONAS.length} customers</div>
+          </div>
+          <button onClick={playAll} style={{background:C.gold,color:C.night,border:"none",borderRadius:11,padding:"10px 16px",fontWeight:800,fontSize:13.5,cursor:"pointer"}}>▶ Run all eight</button>
+        </div>
+      </div>
+
+      <div className="sw-grid" style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 430px",gap:18,alignItems:"start"}}>
+        <div style={panel}>
+          <div style={{...label,marginBottom:10}}>Choose a customer</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))",gap:10}}>
+            {PERSONAS.map(p=>{
+              const r=results[p.id], on=run&&run.p.id===p.id;
+              return (
+                <button key={p.id} onClick={()=>play(p)} aria-pressed={!!on}
+                  style={{textAlign:"left",background:on?C.panel2:C.night,border:`1px solid ${on?C.gold:C.line}`,borderRadius:13,padding:"12px 13px",cursor:"pointer",color:C.text,display:"flex",gap:11,alignItems:"flex-start"}}>
+                  <span aria-hidden="true" key={r?r.passed:"x"} className={r?"sw-pop":""} style={{fontSize:30,lineHeight:1}}>{p.emoji}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                      <b style={{fontSize:13.5}}>{p.name}</b>
+                      <span style={{fontSize:10,fontWeight:800,color:p.tag==="B2B"?C.b2b:p.tag==="B2C"?C.b2c:"#FCA5A5",border:"1px solid currentColor",borderRadius:999,padding:"0 6px",opacity:.85}}>{p.tag}</span>
+                    </div>
+                    <div style={{fontSize:11.5,color:C.sub,marginTop:2}}>{p.blurb}</div>
+                    <div style={{fontSize:12,marginTop:6,fontWeight:700,color:r?(r.stars===3?"#7BE0A6":C.goldSoft):C.sub}}>
+                      {r?`${MEDAL[r.stars]} ${"★".repeat(r.stars)}${"☆".repeat(3-r.stars)} · ${r.passed}/${r.total}`:"Not played yet"}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{background:"#fff",borderRadius:16,overflow:"hidden",boxShadow:"0 20px 50px rgba(0,0,0,.5)",color:"#1F2937",display:"flex",flexDirection:"column",height:640}}>
+          <div style={{background:"#1E3A8A",color:"#fff",padding:"11px 14px",display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:22}} aria-hidden="true">{run?run.p.emoji:"🥊"}</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:700,fontSize:14}}>{run?`${run.p.name} vs. ☀️ Lina`:"Pick a customer to start"}</div>
+              <div style={{fontSize:11.5,opacity:.85,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{run?res.who:"Each match is scored the moment it ends"}</div>
+            </div>
+            {busy&&<span style={{fontSize:11,fontWeight:700,background:"#ffffff22",padding:"3px 9px",borderRadius:999}}>LIVE</span>}
+          </div>
+          <div ref={stageRef} aria-live="polite" style={{flex:1,overflowY:"auto",padding:12,display:"flex",flexDirection:"column",gap:8,background:"#F3F4F6"}}>
+            {!run&&<div style={{margin:"auto",textAlign:"center",color:"#6B7280",fontSize:13,lineHeight:1.6,maxWidth:280}}>Choose a customer on the left, or press <b>Run all eight</b> to fill the leaderboard.</div>}
+            {res&&res.turns.slice(0,shown).map((t,i)=>{
+              const cust=t.role==="customer";
+              return (
+                <div key={i} className="sw-in" style={{alignSelf:cust?"flex-end":"flex-start",maxWidth:"88%",display:"flex",gap:7,flexDirection:cust?"row-reverse":"row",alignItems:"flex-end"}}>
+                  <span aria-hidden="true" style={{fontSize:18}}>{cust?run.p.emoji:"☀️"}</span>
+                  <div style={{background:cust?"#DCF8C6":"#fff",border:"1px solid #E5E7EB",borderRadius:12,padding:"8px 11px",fontSize:13,lineHeight:1.45,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>
+                    <div style={{fontSize:10.5,fontWeight:800,color:"#6B7280",marginBottom:2}}>{cust?run.p.name:"Lina"}</div>
+                    {t.text}
+                  </div>
+                </div>
+              );
+            })}
+            {typing&&<div style={{alignSelf:"flex-start",background:"#fff",border:"1px solid #E5E7EB",borderRadius:12,padding:"9px 12px"}}><span className="sw-dots"><i/><i/><i/></span></div>}
+            {finished&&(
+              <div className="sw-in" style={{background:"#0B1220",color:C.text,borderRadius:14,padding:14,marginTop:6}}>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+                  <span key={run.p.id+shown} className="sw-pop" style={{fontSize:38}} aria-hidden="true">{MEDAL[res.stars]}</span>
+                  <div>
+                    <div style={{fontSize:18,fontWeight:800,color:C.gold,letterSpacing:2}} aria-label={`${res.stars} of 3 stars`}>{"★".repeat(res.stars)}{"☆".repeat(3-res.stars)}</div>
+                    <div style={{fontSize:12.5,color:C.sub}}>{res.passed} of {res.total} checks passed</div>
+                  </div>
+                </div>
+                {res.checks.map(c=>(
+                  <div key={c.k} style={{display:"flex",gap:9,fontSize:12.5,padding:"4px 0",lineHeight:1.4}}>
+                    <span style={{fontWeight:800,color:c.ok?"#7BE0A6":"#FCA5A5",width:14}}>{c.ok?"✓":"✗"}</span>
+                    <div><b>{c.k}</b> <span style={{color:C.sub}}>· {c.note}</span></div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      {party&&<Celebration key={party.id} party={party}/>}
+    </>
   );
 }
 
