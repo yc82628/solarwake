@@ -3,7 +3,8 @@
 **Revenue recovery for solar installers: quotes that went quiet, and invoices that haven't been paid.**
 SolarWake follows up over email or WhatsApp, books advisor calls, chases payments politely, and keeps a
 ledger your accountant can filter by any period. Messages come from **built-in templates**, and replies are
-understood with **keyword rules**, so the demo runs for free with no paid AI (see *Optional: Claude* below).
+understood with **keyword rules** (English and German), so the demo runs for free with no paid AI. Add an
+OpenAI key and the replies are written by AI instead, behind the same safety rules (see *Optional: OpenAI* below).
 
 The site opens on a public **landing page** (light theme, EN/DE, accessible: skip link, focus outlines,
 WCAG-contrast buttons, reduced-motion support). **Try the live demo** / **Sign in** opens the app (`/#app`):
@@ -15,6 +16,12 @@ WCAG-contrast buttons, reduced-motion support). **Try the live demo** / **Sign i
 | **Transactions** | The installer's accountant | Every payment in and out (customer payments, invoices, supplier bills, refunds) with a calendar range picker, quick periods, **calendar settings** (financial-year start, week start, date format), filters (installer, direction, type, search), a **missing documents** filter with "request" button, and CSV export |
 | **Customer Page** (B2C) | The installer's lead | Personal savings & payback, battery option, financing, price-lock deadline, self-serve booking |
 | **Pay Page** (B2C) | The installer's customer | Invoice details, pay by card / bank transfer / 3 instalments (homeowners), report a problem. Test payments only; no money moves |
+| **🥊 Arena** | Anyone watching the demo | Lina vs. eight tough customers (the Sceptic, the Price Hawk, the CFO, the Angry Opt-out, "I Already Paid" …). Each match plays out live, then a code-checked scorecard (booked? only real numbers? respected a no? no threats?) awards stars and a medal |
+
+The whole app is built to be fun to watch: cold leads are 😴 asleep and wake up ☀️ when they reply, a
+"€ woken up this session" counter counts up with every booking and payment, bookings and payments get a
+short sun-burst and confetti (skipped for reduced motion), and payment reminders read as a mood scale
+from 😊 to 🫡: firmer each step, never rude.
 
 Links in real emails open the right page directly: `/?p=C-1006` (quote page) and `/?i=INV-2026-0102` (pay page).
 
@@ -26,6 +33,11 @@ Each lead also has a **channel**. Many companies ignore vendor WhatsApps, so eve
 ✉️ **email** (inbox-style thread with subject lines and formal sign-offs). You can switch any lead to
 💬 **WhatsApp** in the console before the conversation starts. The console opens on a business lead so the
 email inbox is the first thing judges see.
+
+**Lina writes English or Deutsch** (toggle in the Leads toolbar). German conversations use formal "Sie",
+German openers, quick replies, answers, slot offers, sign-off ("Mit freundlichen Grüßen") and unsubscribe
+footer, and the keyword rules read German replies ("zu teuer", "anderes Angebot", "Mittwoch passt uns",
+"Stopp"). A conversation keeps the language it started in.
 
 ### Live email (real emails, dummy contacts)
 
@@ -75,22 +87,25 @@ Rules, unsubscribes and quiet hours are kept in the browser (localStorage), so a
 another tab of the same browser updates the console live. A production version would store them
 server-side so every device sees the same list.
 
-No external CRM: leads live in the app. A small serverless function keeps your API key off the browser.
+No external CRM: leads live in the app. Small serverless functions keep your API keys off the browser.
 
 ```
-index.html      the whole app (React via CDN, no build step)
-api/chat.js      serverless proxy -> api.anthropic.com (holds your key)
-package.json     lets Vercel recognise the project
+index.html       the whole app (React via CDN, no build step)
+api/chat.js      optional AI proxy -> OpenAI Responses API (holds your key, picks the model)
+api/email.js     real test emails via Resend (dummy recipients only, one test inbox)
+dev-server.mjs   local server that runs the page and api/*.js like Vercel
+package.json     `npm run local`; lets Vercel recognise the project
 ```
 
 ---
 
 ## Test locally (before deploying)
 
-1. Optional, for real emails: create a file named `.env.local` in this folder (it is git-ignored):
+1. Optional, for real emails and/or AI replies: create a file named `.env.local` in this folder (it is git-ignored):
    ```
    RESEND_API_KEY=re_...
    EMAIL_TEST_INBOX=you@gmail.com
+   OPENAI_API_KEY=sk-...
    ```
 2. Run `npm run local` (Node 22.9+; no `npm install` needed).
 3. Open http://localhost:3000 and leave the toggle on **Live mode**.
@@ -133,22 +148,37 @@ In the Vercel project -> Settings -> Domains -> add a domain you own. The free
 - **Mode toggle (top-right):** *Live mode* really sends the agent's emails to your test inbox.
   *Rehearsal: nothing sent* behaves the same but sends no emails, for practising.
 - Suggested 3-minute flow:
-  1. **Console:** point at the KPI row. "€X of pipeline the installer already paid for."
-  2. Click **Reactivate all cold leads**. Openers go out and replies come in on the activity feed (replies are simulated).
+  1. **Console:** point at the KPI row. "€X of pipeline the installer already paid for." The leads are 😴 asleep.
+  2. Click **⏰ Wake up all cold leads**. Openers go out, alarms ring, and replies come in on the activity feed
+     (replies are simulated); the leads that answer wake up ☀️.
   3. Open a homeowner lead -> **Send reactivation email** (or switch it to WhatsApp first) -> tap the suggested
      replies. The agent shares the customer-page link.
   4. Click the link -> **Customer Page**: drag the bill slider, toggle the battery, pick a slot, confirm.
-  5. Back in the Console: the lead is **Booked**, the KPIs update and an **advisor handoff brief** appears.
-  6. Switch to **🏢 Businesses · B2B**, open a commercial lead and **Send reactivation email**. Reply as the
-     company from the inbox to show the CFO playbook over email.
-  7. Finish on the **ROI calculator** with the installer's own numbers.
+  5. Back in the Console: confetti, the lead is **Booked**, the "€ woken up" counter jumps and an
+     **advisor handoff brief** appears.
+  6. Switch **Lina writes** to **Deutsch**, open a commercial lead and **Send reactivation email**. Reply as the
+     company from the inbox to show the CFO playbook in German.
+  7. **🥊 Arena → Run all eight**: Lina handles every tough customer and the scorecards fill with medals.
+  8. Finish on the **ROI calculator** with the installer's own numbers.
 
 ## Cost
-Free: the templates need no AI provider, and Resend's free plan covers the test emails.
+Free by default: the templates need no AI provider, and Resend's free plan covers the test emails.
 
-## Optional: Claude
-The Claude connection is still in the code, switched off. To let Claude write the messages:
-1. Add `ANTHROPIC_API_KEY` (an account with credits) in Vercel.
-2. In `index.html`, set `const USE_CLAUDE = true;` (and optionally change `MODEL`; add any new model
-   name to `ALLOWED_MODELS` in `api/chat.js`).
-If a Claude call fails, the app falls back to the templates automatically.
+## Optional: OpenAI
+To let AI write the replies, reminders and advisor briefs:
+1. Create a key at https://platform.openai.com (an account with credit).
+2. Add `OPENAI_API_KEY` in Vercel -> Settings -> Environment Variables (or in `.env.local` for
+   `npm run local`), then redeploy. Nothing in the code needs to change: the page asks `GET /api/chat` on load
+   and switches on by itself; the header badge then reads "AI replies · OpenAI <model>".
+3. Optional: `OPENAI_MODEL` (default `gpt-6-luna`, OpenAI's lowest-cost model as of October 2026; check
+   https://developers.openai.com/api/docs/models for current names) and `OPENAI_REASONING_EFFORT` (e.g. `low`).
+
+What stays in place with AI on:
+- **Rules run first.** STOP / unsubscribe, wrong person and disputes are handled by code before any AI call.
+- **No invented numbers.** If an AI reply quotes a € amount that isn't in the customer's own data, it is
+  thrown away and the template answers instead (the activity feed says so).
+- **Templates as fallback.** Any failed call, cut-off reply or invalid JSON falls back to the templates.
+  Rehearsal mode always uses the templates.
+- **The key stays server-side.** The browser can't choose the model; tokens and message sizes are capped.
+
+To switch AI off without removing the key, set `const ALLOW_AI = false;` in `index.html`.

@@ -15,8 +15,10 @@ It is a **demo** with fictional companies and contacts. No real customer is ever
 ## Files
 
 ```
-index.html       the whole app (~2200 lines): React 18 + Babel standalone from a CDN, no build step
-api/chat.js      serverless proxy to the LLM (currently Anthropic, switched off by default)
+index.html       the whole app (~2800 lines): React 18 + Babel standalone from a CDN, no build step
+api/chat.js      optional AI proxy to OpenAI's Responses API. GET says whether OPENAI_API_KEY is set;
+                 the server picks the model (OPENAI_MODEL, default gpt-6-luna), caps tokens and
+                 forwards only plain user/assistant messages; returns { text }
 api/email.js     serverless email sender via Resend; only accepts @example.com recipients,
                  redirects every email to one test inbox, and adds an unsubscribe link
                  (/?u=<contact id>) plus a List-Unsubscribe header to every email
@@ -30,26 +32,40 @@ README.md        features, setup, deploy and a 3-minute demo script
 Sections are marked with `// ================== NAME ==================` comments. Line numbers drift,
 so search for the header names:
 
-- **CONFIG:** `USE_CLAUDE` (currently `false`) and `MODEL`.
+- **CONFIG:** `ALLOW_AI` (default `true`). AI is actually on only when `/api/chat` reports a key and the
+  app isn't in Rehearsal (`aiOn` in `App()`). Without a key everything runs on the free templates.
 - **CRM DATA:** `COMPANIES` (4 installers), `CONTACTS` (16 leads with `seg`, `kw`, `quote`, `bill`,
   `lost` = why the deal stalled, `dm` = decision-maker for businesses, `consent` = opted in to
   follow-up marketing; C-1004 and C-1014 are `false`). `ECON` holds the solar economics,
   and `solarModel()` computes savings, payback and CO₂ from it.
 - **PLAYBOOKS:** `PLAYBOOKS.Residential` (B2C homeowner) and `PLAYBOOKS.Commercial` (B2B), each with
-  quick replies, openers per channel (`email` / `whatsapp`) and a `system(lead, co, channel)` prompt.
-  `leadFacts()` is the only source of numbers the agent may quote. `JSON_RULES` defines the reply format:
-  `{"message","status":"contacting|warm|booked","appointment"}`.
-- **REPLY TEMPLATES:** the current "brain". `classifyLead()` uses keyword regexes to find the intent
-  (book, price, competitor, decider, cashflow, numbers, timing, interest), `leadAnswer()` answers it
-  from templates and `leadReply()` builds the message and moves toward a booking. `parseAgent()` parses
-  LLM JSON and defaults to `warm` on bad output.
-- **AI seam:** `callClaude(system, messages, max_tokens)` is the only function that talks to the LLM.
-  It is used in 4 places, each with a template fallback: lead replies (`agentReply`), reminder emails
-  (`sendReminder`), billing replies (`invAgentReply`) and the advisor handoff brief (`makeBrief`).
-  `toApi()` adds a dummy first user turn because Anthropic's API requires one.
+  `quick` and simulated campaign `replies` per language (`{ en:[…], de:[…] }`), openers per channel
+  (`email` / `whatsapp`) that switch on `lead.lang`, and a `system(lead, co, channel)` prompt (with
+  `LANG_RULE`). `leadFacts()` is the only source of numbers the agent may quote. `JSON_RULES` defines the
+  reply format: `{"message","status":"contacting|warm|booked","appointment"}`.
+- **Language:** a lead gets `lang` ("en" | "de") stamped when Lina starts (toolbar toggle `agentLang`,
+  saved as `sw-agent-lang`); the conversation keeps it. Helpers: `de(l)`, `greet(l)`, `kwOf(l)`,
+  `yearsOf(l,p)`, `signoff(co,biz,lang)`. Billing emails, the advisor brief and the UI stay English.
+- **Number guard:** `figs()` extracts € amounts (normalising "€1,246" / "1.246 €" to `eur()` style),
+  `leadFigures()` / `invFigures()` list the only amounts allowed, `strayFigures()` finds the rest. Every AI
+  reply with a stray figure is dropped for the template, and the Arena scores with the same functions.
+- **REPLY TEMPLATES:** the free "brain". `classifyLead()` uses English + German keyword regexes to find
+  the intent (upset, book, price, competitor, decider, cashflow, numbers, timing, interest),
+  `leadAnswer()` answers it from templates and `leadReply()` builds the message and moves toward a
+  booking ("upset" gets an honest where-your-details-came-from answer, never a pitch or slot ask).
+  `parseAgent()` parses AI JSON and defaults to `warm` on bad output.
+- **AI seam:** `callAI(system, messages, max_tokens)` is the only function that talks to the AI (POST
+  `/api/chat`). It is used in 4 places, each with a template fallback: lead replies (`agentReply`),
+  reminder emails (`sendReminder`), billing replies (`invAgentReply`) and the advisor brief (`makeBrief`).
+- **FUN LAYER:** `STATUS_ICON` (😴 ⏰ ☀️ 🎉), `WakeAvatar`, `useCountUp` + `WokenCounter` (session € from
+  booked quotes + `TX-L…` payments), `Celebration` (sun-burst + confetti via `celebrate()` in `App()`,
+  skipped when `REDUCED`), `MoodMeter` and the `mood` emoji on each `LADDER` step.
+- **CUSTOMER ARENA:** `PERSONAS` (8 scripted customers), `arenaRun(p)` replays one against the real
+  engine (`leadGuard` → `leadReply`, or `classifyReply` → `replyScript`) and returns turns + code checks,
+  `ArenaView` animates it. Nothing is sent and console state is untouched. Add a persona = add a row.
 - **SENDING RULES:** `POLICY_DEFAULT` (quiet hours 08–21, weekdays only for businesses, at most 1
-  proactive message per customer every 3 days), `isQuiet()` / `nextWindow()`, `STOP_WORDS` and
-  `contactInfo()`. In `App()`, `sendRule()` gates every proactive message (openers, campaigns,
+  proactive message per customer every 3 days), `isQuiet()` / `nextWindow()`, `STOP_WORDS`,
+  `WRONG_PERSON`, `leadGuard()` (runs before any reply, EN + DE) and `contactInfo()`. In `App()`, `sendRule()` gates every proactive message (openers, campaigns,
   reminders): unsubscribed → nothing, lead without `consent` → nothing, over the limit → not sent, quiet hours → held and released later
   (staff can override). Replies to a customer's own message skip the limit and quiet hours but never
   go to unsubscribed contacts. Unsubscribes and the policy live in localStorage (`sw-optouts`,
@@ -59,10 +75,10 @@ so search for the header names:
   final), `classifyReply()` for payment replies, `billingSystem()` prompt (with rules: never invent
   amounts or legal consequences, never threaten), `reminderScript()` / `replyScript()` templates.
 - **APP:** `App()` holds all state. Tabs: Leads console, Invoices, Transactions (accountant ledger),
-  Customer Page and Pay Page. `runCampaign()` sends openers to all cold leads; **replies in the
+  Customer Page, Pay Page and Arena. `runCampaign()` sends openers to all cold leads; **replies in the
   campaign are simulated**. `mailOut()` sends real emails through `/api/email` in Live mode.
 - **Views:** `Console`, `EmailPane`, `ROICalc`, `Portal` (customer page), `InvoicesView`, `PayPage`,
-  `LedgerView`, `Landing` (public landing page, EN/DE via the `LT` strings).
+  `LedgerView`, `ArenaView`, `Landing` (public landing page, EN/DE via the `LT` strings).
 
 Modes: the header toggle switches between **Live mode** (real test emails) and **Rehearsal** (nothing
 sent, templates only). Deep links: `/?p=C-1006` opens a customer page, `/?i=INV-...` a pay page,
@@ -72,9 +88,15 @@ sent, templates only). Deep links: `/?p=C-1006` opens a customer page, `/?i=INV-
 
 - `npm run local` (Node 22.9+, no `npm install`) → http://localhost:3000. Secrets go in `.env.local`
   (gitignored by `.env*`).
-- There is no test suite. Babel compiles in the browser, so **a syntax error only shows up as a
+- There is no unit-test suite. Babel compiles in the browser, so **a syntax error only shows up as a
   blank page**. After every change to `index.html`, load the page and check the browser console,
   then click through the flow you touched.
+- **The Arena is the regression check for reply logic.** After touching `classifyLead`, `leadAnswer`,
+  `leadReply`, `leadGuard` or the billing templates, open 🥊 Arena → Run all eight: every persona should
+  stay at 4/4. Top-level names are reachable from the browser console, e.g.
+  `PERSONAS.map(p=>arenaRun(p).passed)`.
+- To try the AI path without spending money, run the server with a fake `OPENAI_API_KEY` (the page then
+  believes AI is on) and stub `window.fetch` for `POST /api/chat` in the browser console.
 - The page needs internet (React and Babel come from unpkg, pinned to exact versions).
 
 ## Rules
@@ -86,87 +108,49 @@ sent, templates only). Deep links: `/?p=C-1006` opens a customer page, `/?i=INV-
    payment flow with no network.
 3. **No invented facts.** The agent may only quote numbers from `leadFacts()` / `invFacts()` (which come
    from `ECON` and the data). Never let the model state subsidies, prices, savings or legal
-   consequences of its own.
+   consequences of its own. The number guard (`strayFigures`) enforces this for € amounts; keep it on
+   every AI path.
 4. **Keep the protections in `api/`.** `api/email.js` only accepts `@example.com` recipients,
-   redirects to the test inbox and refuses to send without a contact id for the unsubscribe link; `api/chat.js` allow-lists models, caps tokens and forwards only known
-   fields. A public demo URL must not let strangers spend the API key on arbitrary requests.
-5. **Safety decisions stay deterministic.** Opt-outs ("STOP", "Stopp", "unsubscribe") and disputes
+   redirects to the test inbox and refuses to send without a contact id for the unsubscribe link;
+   `api/chat.js` picks the model server-side, caps tokens and message sizes and forwards only plain
+   user/assistant messages. A public demo URL must not let strangers spend the API key on arbitrary requests.
+5. **Free by default.** The owner doesn't want paid AI running unless they add a key themselves. Never
+   claim "AI" in the UI when `aiOn` is false.
+6. **Safety decisions stay deterministic.** Opt-outs ("STOP", "Stopp", "unsubscribe") and disputes
    are detected with rules *before* any LLM call, and they always win over what the model says.
-6. **Honest UI.** Labels must match reality: the provider badge, "Written by …" on briefs, the
+7. **Honest UI.** Labels must match reality: the provider badge, "Written by …" on briefs, the
    `CRM {company.api}` badge (there is no real CRM), and simulated campaign replies.
-7. Keep the no-build, single-file setup for today. Make targeted edits; don't reformat or reorganise
-   the file. One commit per step below.
+8. Keep the no-build, single-file setup. Make targeted edits; don't reformat or reorganise the file.
+   One commit per feature.
 
-## Judging lens: fun and inviting
+## Design lens: fun and inviting
 
-Judges reward demos that are **fun and inviting**, where even a basic business task (chasing an invoice,
-following up a quote) feels playful. Everything below should pass this test: *would someone watching
-from the back of the room smile or lean in?* Prefer visible moments of delight (motion, a counter going
-up, a satisfying "booked!") over hidden features. Keep it tasteful: the product still has to look
-trustworthy to an installer, and animations must respect `prefers-reduced-motion` (already handled
-globally in the CSS).
+Even a basic business task (chasing an invoice, following up a quote) should feel playful to watch.
+Test every change with: *would someone watching from the back of the room smile or lean in?* Prefer
+visible moments of delight (motion, a counter going up, a satisfying "booked!") over hidden features.
+Keep it tasteful: the product still has to look trustworthy to an installer, and animations must respect
+`prefers-reduced-motion` (handled globally in the CSS; JS-driven effects check `REDUCED`).
 
-## Build plan for today (DevDay Exchange hackathon, Berlin, 24 Oct 2026, demos at about 18:00)
+## Status (27 Oct 2026)
 
-Order matters. Steps 1–3 are a complete, fun demo; step 4 is the showstopper.
-**Feature freeze at 16:30**: after that, only fixes and demo rehearsal.
+Built after the DevDay Exchange hackathon (24 Oct 2026), in this order:
+1. ✅ **Safety rails:** marketing consent, STOP/Stopp, unsubscribe links, sending limit, quiet hours.
+2. ✅ **Fun layer:** sleeping → waking leads, "€ woken up" counter, celebrations, reminder mood scale.
+3. ✅ **Customer Arena:** 8 scripted personas against the real engine, code-checked scorecards,
+   "Run all eight". Writing it exposed two engine gaps (pitching to an upset customer, no wrong-person
+   handling), both fixed.
+4. ✅ **German agent:** EN/DE toggle, German templates and keyword rules, German unsubscribe footer.
+5. ✅ **OpenAI switch:** `api/chat.js` on the Responses API, auto-on when `OPENAI_API_KEY` is set,
+   number guard on every AI reply, templates as fallback. Tested with a stubbed upstream; not yet
+   tried against the real API (no key on this project).
 
-### 1. Switch the AI to OpenAI (~30 min)
-- `api/chat.js`: call the OpenAI API with `OPENAI_API_KEY` (check the current recommended endpoint and
-  model names in OpenAI's docs; don't guess). Keep the model allow-list and token cap. Use structured
-  JSON output (a JSON schema) where the API supports it, so replies parse reliably.
-- Return a provider-neutral `{ text }` to the browser.
-- In `index.html`: rename `callClaude` → `callAI` and `USE_CLAUDE` → `USE_AI`, drop the
-  Anthropic-only `output_config`, and update every label that says Claude (header badge and tooltip,
-  "Written by Claude" on briefs, CONFIG comments). Update `dev-server.mjs` logs, `package.json`
-  description and the README's "Optional: Claude" section.
-- Done when: with `USE_AI = true` and a key in `.env.local`, a lead conversation books and a billing
-  reply is handled by the AI; with the key removed, both still work via templates.
-
-### 2. Safety rails (~45 min) ✅ done (consent flag, STOP/Stopp opt-out, plus unsubscribe links, sending limit, quiet hours)
-- Add a `consent` field to each lead (most `true`, one or two `false` for the demo). Without consent,
-  "Send reactivation email" is disabled and says why (UWG §7 / GDPR: marketing to old leads needs
-  opt-in), and `runCampaign()` skips the lead.
-- Rule-based opt-out: "STOP" / "Stopp" / "unsubscribe" ends the thread with a short confirmation,
-  marks the lead `Opted out` and never messages it again, before any AI call.
-- Done when: both can be shown in the demo in under 20 seconds.
-
-### 3. Make it fun (~1.5 h): the "wake-up" moments
-Pick the ones that read best on a projector; don't do all of them half-way.
-- **Sleeping → awake leads:** cold leads look asleep (😴, dimmed); on a reply they "wake up" with a
-  short sunrise animation (☀️), and booked leads glow.
-- **Recovered € counter:** a big number in the console header that counts up with an easing animation
-  whenever a lead books or an invoice is paid ("€48,500 woken up today").
-- **Booking celebration:** a small, tasteful confetti or sun-burst on booking and on payment, on top of
-  the existing toast.
-- **Friendlier reminder ladder:** show the five reminder steps as a mood scale (🙂 → 😐 → 😬 → 🫡) so
-  "chasing invoices" looks approachable instead of aggressive.
-- Done when: the 3-minute demo script in the README has at least three moments that get a reaction.
-
-### 4. Customer Arena (~2 h): AI vs. AI, scored live
-The showstopper, and it doubles as our evaluation suite.
-- A new view where **an OpenAI model plays a difficult customer** from a list of personas (the sceptic,
-  "too expensive", "already got another quote", the CFO who needs numbers, wrong number, angry opt-out,
-  "I already paid") and **Lina** handles them. The conversation plays out live on screen.
-- Each run gets a scorecard, checked by code where possible: booked?, every € figure in the reply
-  appears in `leadFacts()` / `invFacts()`?, opt-out honoured?, no threats in billing?, valid JSON every
-  turn? Show it as a playful result card (stars or a medal), plus a leaderboard across personas.
-- Let the audience or a judge pick the persona (or type their own one-line persona) to invite
-  participation.
-- Rehearsal fallback: ship 2–3 pre-recorded arena runs so the view works with no network.
-- Done when: one click runs a persona end to end and shows its scorecard; "Run all" fills the
-  leaderboard.
-
-### 5. German in the app (~45 min, if time)
-- The landing page already has EN/DE. Add a language toggle for the agent: when on, openers, quick
-  replies and AI replies are German (the AI writes German from the same facts; templates get German
-  versions for the most-used intents).
-- Done when: one full German lead conversation books.
-
-### 6. Optional polish (only if ahead of schedule)
+## Next ideas
+- **AI customer in the Arena:** when `aiOn`, let a second model play the persona (and a judge type a
+  one-line persona of their own); keep the scripted runs as the offline fallback.
+- **German in the Arena:** a few German personas, so the regression check covers both languages.
 - An `.ics` calendar download when a lead books.
-- A QR code on the console that opens the customer page on a judge's phone (`/?p=C-...`). Note the state
-  is per-browser, so a booking on the phone won't update the laptop unless shared state is added.
+- A QR code on the console that opens the customer page on a phone (`/?p=C-...`). State is per-browser,
+  so a booking on the phone won't update the laptop unless shared state is added.
 
 ## Known limitations (be upfront about these in the demo)
 - Leads and invoices live in browser memory; a reload resets everything.
